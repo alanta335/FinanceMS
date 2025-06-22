@@ -16,11 +16,26 @@ const Dashboard: React.FC = () => {
 
   const [sales, setSales] = useState<Sale[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadData = () => {
-      const salesData = storage.getData<Sale>('sales');
-      const expensesData = storage.getData<Expense>('expenses');
+    loadData();
+    
+    // Refresh data every 30 seconds
+    const interval = setInterval(loadData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const [salesData, expensesData] = await Promise.all([
+        storage.getData<Sale>('sales'),
+        storage.getData<Expense>('expenses')
+      ]);
       
       setSales(salesData);
       setExpenses(expensesData);
@@ -42,14 +57,13 @@ const Dashboard: React.FC = () => {
         topSellingProducts: getTopSellingProducts(salesData),
         monthlyTrends: getMonthlyTrends(salesData, expensesData)
       });
-    };
-
-    loadData();
-    
-    // Refresh data every 30 seconds
-    const interval = setInterval(loadData, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    } catch (err) {
+      console.error('Error loading dashboard data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const MetricCard: React.FC<{
     title: string;
@@ -80,6 +94,37 @@ const Dashboard: React.FC = () => {
       </div>
     </div>
   );
+
+  if (loading) {
+    return (
+      <div className="space-y-8 max-w-none">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <span className="ml-3 text-gray-600">Loading dashboard...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-8 max-w-none">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <div className="flex items-center">
+            <AlertTriangle className="h-5 w-5 text-red-600 mr-2" />
+            <h3 className="text-red-800 font-medium">Error Loading Dashboard</h3>
+          </div>
+          <p className="text-red-700 mt-2">{error}</p>
+          <button
+            onClick={loadData}
+            className="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 max-w-none">
