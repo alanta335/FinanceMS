@@ -48,6 +48,8 @@ export interface Expense {
   status: 'pending' | 'approved' | 'rejected';
   isRecurring: boolean;
   recurringFrequency?: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  from_location?: string;
+  to_location?: string;
 }
 
 export interface Employee {
