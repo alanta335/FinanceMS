@@ -9,7 +9,7 @@ interface StorageData {
 }
 
 class DataStorage {
-  private cache: Partial<StorageData> = {};
+  private cache: { [K in keyof StorageData]?: StorageData[K] } = {};
   private cacheTimestamps: Partial<Record<keyof StorageData, number>> = {};
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
@@ -20,7 +20,20 @@ class DataStorage {
   }
 
   private setCacheData<T>(key: keyof StorageData, data: T[]): void {
-    this.cache[key] = data;
+    switch (key) {
+      case 'sales':
+        this.cache.sales = data as Sale[];
+        break;
+      case 'expenses':
+        this.cache.expenses = data as Expense[];
+        break;
+      case 'employees':
+        this.cache.employees = data as Employee[];
+        break;
+      case 'products':
+        this.cache.products = data as Product[];
+        break;
+    }
     this.cacheTimestamps[key] = Date.now();
   }
 
@@ -42,19 +55,19 @@ class DataStorage {
       }
 
       let data: T[] = [];
-      
+
       switch (key) {
         case 'sales':
-          data = await supabaseStorage.getSales() as T[];
+          data = await supabaseStorage.getSales() as unknown as T[];
           break;
         case 'expenses':
-          data = await supabaseStorage.getExpenses() as T[];
+          data = await supabaseStorage.getExpenses() as unknown as T[];
           break;
         case 'employees':
-          data = await supabaseStorage.getEmployees() as T[];
+          data = await supabaseStorage.getEmployees() as unknown as T[];
           break;
         case 'products':
-          data = await supabaseStorage.getProducts() as T[];
+          data = await supabaseStorage.getProducts() as unknown as T[];
           break;
         default:
           throw new Error(`Unknown data type: ${key}`);
@@ -62,17 +75,17 @@ class DataStorage {
 
       // Cache the data
       this.setCacheData(key, data);
-      
+
       return data;
     } catch (error) {
       console.error(`Error fetching ${key} from Supabase:`, error);
-      
+
       // Return cached data if available, even if expired
       if (this.cache[key]) {
         console.warn(`Using stale cache for ${key} due to error`);
-        return this.cache[key] as T[];
+        return this.cache[key] as unknown as T[];
       }
-      
+
       throw new Error(`Unable to load ${key}. Please check your internet connection and try again.`);
     }
   }
@@ -81,16 +94,16 @@ class DataStorage {
     try {
       switch (key) {
         case 'sales':
-          await supabaseStorage.addSale(item as Sale);
+          await supabaseStorage.addSale(item as unknown as Sale);
           break;
         case 'expenses':
-          await supabaseStorage.addExpense(item as Expense);
+          await supabaseStorage.addExpense(item as unknown as Expense);
           break;
         case 'employees':
-          await supabaseStorage.addEmployee(item as Employee);
+          await supabaseStorage.addEmployee(item as unknown as Employee);
           break;
         case 'products':
-          await supabaseStorage.addProduct(item as Product);
+          await supabaseStorage.addProduct(item as unknown as Product);
           break;
         default:
           throw new Error(`Unknown data type: ${key}`);
@@ -98,9 +111,9 @@ class DataStorage {
 
       // Update cache
       if (this.cache[key]) {
-        (this.cache[key] as T[]).push(item);
+        (this.cache[key] as unknown as T[]).push(item);
       }
-      
+
     } catch (error) {
       console.error(`Error adding ${key} item:`, error);
       throw new Error(`Failed to add ${key.slice(0, -1)}. Please try again.`);
@@ -134,7 +147,7 @@ class DataStorage {
           items[index] = { ...items[index], ...updates };
         }
       }
-      
+
     } catch (error) {
       console.error(`Error updating ${key} item:`, error);
       throw new Error(`Failed to update ${key.slice(0, -1)}. Please try again.`);
@@ -161,10 +174,21 @@ class DataStorage {
       }
 
       // Update cache
-      if (this.cache[key]) {
-        this.cache[key] = (this.cache[key] as any[]).filter(item => item.id !== id);
+      switch (key) {
+        case 'sales':
+          this.cache.sales = (this.cache.sales || []).filter(item => item.id !== id);
+          break;
+        case 'expenses':
+          this.cache.expenses = (this.cache.expenses || []).filter(item => item.id !== id);
+          break;
+        case 'employees':
+          this.cache.employees = (this.cache.employees || []).filter(item => item.id !== id);
+          break;
+        case 'products':
+          this.cache.products = (this.cache.products || []).filter(item => item.id !== id);
+          break;
       }
-      
+
     } catch (error) {
       console.error(`Error deleting ${key} item:`, error);
       throw new Error(`Failed to delete ${key.slice(0, -1)}. Please try again.`);

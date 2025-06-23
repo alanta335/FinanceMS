@@ -187,6 +187,39 @@ const AddExpenseModal: React.FC<Props> = ({
               </select>
             )}
           </div>
+          {/* Show travel fields if category is travel */}
+          {newExpense.category === "travel" && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  From Location
+                </label>
+                <input
+                  type="text"
+                  value={newExpense.from_location || ""}
+                  onChange={(e) =>
+                    setNewExpense({ ...newExpense, from_location: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter starting location"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  To Location
+                </label>
+                <input
+                  type="text"
+                  value={newExpense.to_location || ""}
+                  onChange={(e) =>
+                    setNewExpense({ ...newExpense, to_location: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter destination location"
+                />
+              </div>
+            </>
+          )}
         </div>
         <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200">
           <button

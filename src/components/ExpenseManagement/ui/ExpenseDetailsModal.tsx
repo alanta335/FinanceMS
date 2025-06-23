@@ -25,6 +25,19 @@ const ExpenseDetailsModal: React.FC<Props> = ({ expense, onClose }) => {
             <span className="text-gray-600">Category:</span>
             <span className="font-medium">{expense.category}</span>
           </div>
+          {/* Show travel locations if category is travel */}
+          {expense.category === "travel" && (
+            <>
+              <div className="flex justify-between">
+                <span className="text-gray-600">From Location:</span>
+                <span className="font-medium">{expense.from_location || "N/A"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">To Location:</span>
+                <span className="font-medium">{expense.to_location || "N/A"}</span>
+              </div>
+            </>
+          )}
           <div className="flex justify-between">
             <span className="text-gray-600">Subcategory:</span>
             <span className="font-medium">{expense.subcategory}</span>

@@ -102,6 +102,8 @@ export const useExpenseManagement = () => {
                 status: "pending",
                 isRecurring: newExpense.isRecurring,
                 recurringFrequency: newExpense.isRecurring ? newExpense.recurringFrequency : undefined,
+                from_location: newExpense.from_location,
+                to_location: newExpense.to_location,
             };
             await storage.addItem("expenses", expense);
             await loadExpenses();
