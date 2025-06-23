@@ -99,7 +99,9 @@ const transformExpenseToDB = (expense: Expense) => ({
   approved_by: expense.approvedBy || '',
   status: expense.status,
   is_recurring: expense.isRecurring,
-  recurring_frequency: expense.recurringFrequency || ''
+  recurring_frequency: expense.recurringFrequency || '',
+  from_location: expense.from_location || '',
+  to_location: expense.to_location || ''
 });
 
 const transformEmployeeToDB = (employee: Employee) => ({
