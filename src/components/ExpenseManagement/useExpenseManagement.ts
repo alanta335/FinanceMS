@@ -138,7 +138,11 @@ export const useExpenseManagement = () => {
 
     const handleApproveExpense = async (id: string) => {
         try {
-            await storage.updateItem("expenses", id, { status: "approved", approvedBy: "Admin" });
+            await storage.updateItem<Expense>(
+                "expenses",
+                id,
+                { status: "approved", approvedBy: "Admin" }
+            );
             await loadExpenses();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to approve expense");
@@ -148,7 +152,11 @@ export const useExpenseManagement = () => {
 
     const handleRejectExpense = async (id: string) => {
         try {
-            await storage.updateItem("expenses", id, { status: "rejected", approvedBy: "Admin" });
+            await storage.updateItem<Expense>(
+                "expenses",
+                id,
+                { status: "rejected", approvedBy: "Admin" }
+            );
             await loadExpenses();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to reject expense");
