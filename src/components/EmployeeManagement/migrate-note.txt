@@ -1,0 +1,6 @@
+The following files are now inside EmployeeManagement/ and can be deleted from src/components:
+- EmployeeForm.tsx
+- EmployeeRow.tsx
+- employeeUtils.ts
+
+Please update imports in your project to use './EmployeeManagement/EmployeeForm', './EmployeeManagement/EmployeeRow', and './EmployeeManagement/employeeUtils' as needed.
