@@ -1,5 +1,6 @@
 import React from "react";
 import { formatCurrency } from "../../../utils/calculations";
+import { CurrencyRupeeIcon, ShoppingBagIcon, StarIcon } from "@heroicons/react/24/solid";
 
 interface SummaryCardsProps {
   totalSales: number;
@@ -22,7 +23,7 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({
           </p>
         </div>
         <div className="p-3 bg-blue-100 rounded-lg">
-          {/* Icon can be added here */}
+          <CurrencyRupeeIcon className="h-7 w-7 text-blue-500" />
         </div>
       </div>
     </div>
@@ -35,7 +36,7 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({
           <p className="text-2xl font-bold text-green-600">{totalQuantity}</p>
         </div>
         <div className="p-3 bg-green-100 rounded-lg">
-          {/* Icon can be added here */}
+          <ShoppingBagIcon className="h-7 w-7 text-green-500" />
         </div>
       </div>
     </div>
@@ -48,7 +49,7 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({
           </p>
         </div>
         <div className="p-3 bg-yellow-100 rounded-lg">
-          {/* Icon can be added here */}
+          <StarIcon className="h-7 w-7 text-yellow-500" />
         </div>
       </div>
     </div>
