@@ -35,6 +35,7 @@ const SalesManagement: React.FC = () => {
     customerName: '',
     customerPhone: '',
     salesPerson: '',
+    commission: 0, // <-- add commission to form state
     notes: ''
   });
 
@@ -100,8 +101,8 @@ const SalesManagement: React.FC = () => {
   const handleAddSale = async () => {
     try {
       const totalAmount = newSale.quantity * newSale.unitPrice;
-      const commission = totalAmount * 0.05; // 5% commission
-
+      // Use commission from form
+      const commission = newSale.commission;
       const sale: Sale = {
         id: generateId(),
         date: new Date(),
@@ -149,6 +150,7 @@ const SalesManagement: React.FC = () => {
       customerName: '',
       customerPhone: '',
       salesPerson: '',
+      commission: 0, // reset commission
       notes: ''
     });
   };
@@ -584,6 +586,19 @@ const SalesManagement: React.FC = () => {
                   onChange={(e) => setNewSale({ ...newSale, salesPerson: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Commission</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={newSale.commission === 0 ? (newSale.quantity * newSale.unitPrice * 0.05).toFixed(2) : newSale.commission}
+                  onChange={e => setNewSale({ ...newSale, commission: parseFloat(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <span className="text-xs text-gray-400">Default is 5% of total, but you can edit.</span>
               </div>
             </div>
 
