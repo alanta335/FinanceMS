@@ -1,5 +1,6 @@
 import React from "react";
 import { NewSale } from "./types";
+import { UserIcon, DevicePhoneMobileIcon, CreditCardIcon } from "@heroicons/react/24/outline";
 
 interface SaleCustomerFieldsProps {
   newSale: NewSale;
@@ -9,7 +10,9 @@ interface SaleCustomerFieldsProps {
 const SaleCustomerFields: React.FC<SaleCustomerFieldsProps> = ({ newSale, onChange }) => (
   <>
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name</label>
+      <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+        <UserIcon className="h-4 w-4 text-gray-400" /> Customer Name
+      </label>
       <input
         type="text"
         value={newSale.customerName}
@@ -18,7 +21,9 @@ const SaleCustomerFields: React.FC<SaleCustomerFieldsProps> = ({ newSale, onChan
       />
     </div>
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">Customer Phone</label>
+      <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+        <DevicePhoneMobileIcon className="h-4 w-4 text-gray-400" /> Customer Phone
+      </label>
       <input
         type="tel"
         value={newSale.customerPhone}
@@ -27,7 +32,9 @@ const SaleCustomerFields: React.FC<SaleCustomerFieldsProps> = ({ newSale, onChan
       />
     </div>
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+      <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+        <CreditCardIcon className="h-4 w-4 text-gray-400" /> Payment Method
+      </label>
       <select
         value={newSale.paymentMethod}
         onChange={e => onChange("paymentMethod", e.target.value as NewSale["paymentMethod"])}

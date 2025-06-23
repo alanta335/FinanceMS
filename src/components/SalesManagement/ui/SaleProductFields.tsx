@@ -1,5 +1,11 @@
 import React from "react";
 import { Product } from "./types";
+import {
+  TagIcon,
+  DevicePhoneMobileIcon,
+  IdentificationIcon,
+  HashtagIcon,
+} from "@heroicons/react/24/outline";
 
 interface SaleProductFieldsProps {
   product: Product;
@@ -12,8 +18,9 @@ const SaleProductFields: React.FC<SaleProductFieldsProps> = ({
 }) => (
   <>
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Product Name
+      <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+        {/* TagIcon for Product Name */}
+        <TagIcon className="h-4 w-4 text-gray-400" /> Product Name
       </label>
       <input
         type="text"
@@ -23,8 +30,9 @@ const SaleProductFields: React.FC<SaleProductFieldsProps> = ({
       />
     </div>
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Category
+      <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+        {/* TagIcon for Category (reuse TagIcon) */}
+        <TagIcon className="h-4 w-4 text-gray-400" /> Category
       </label>
       <select
         value={product.category}
@@ -39,8 +47,8 @@ const SaleProductFields: React.FC<SaleProductFieldsProps> = ({
       </select>
     </div>
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Brand
+      <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+        <DevicePhoneMobileIcon className="h-4 w-4 text-gray-400" /> Brand
       </label>
       <input
         type="text"
@@ -50,8 +58,8 @@ const SaleProductFields: React.FC<SaleProductFieldsProps> = ({
       />
     </div>
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Model
+      <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+        <IdentificationIcon className="h-4 w-4 text-gray-400" /> Model
       </label>
       <input
         type="text"
@@ -61,8 +69,8 @@ const SaleProductFields: React.FC<SaleProductFieldsProps> = ({
       />
     </div>
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Serial Number
+      <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+        <HashtagIcon className="h-4 w-4 text-gray-400" /> Serial Number
       </label>
       <input
         type="text"
@@ -72,8 +80,9 @@ const SaleProductFields: React.FC<SaleProductFieldsProps> = ({
       />
     </div>
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        IMEI (if applicable)
+      <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+        {/* HashtagIcon for IMEI (if applicable) */}
+        <HashtagIcon className="h-4 w-4 text-gray-400" /> IMEI (if applicable)
       </label>
       <input
         type="text"

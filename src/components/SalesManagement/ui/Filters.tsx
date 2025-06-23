@@ -1,4 +1,5 @@
 import React from "react";
+import { MagnifyingGlassIcon, ArrowDownTrayIcon } from "@heroicons/react/24/outline";
 
 interface FiltersState {
   paymentMethod: string;
@@ -31,6 +32,7 @@ const Filters: React.FC<FiltersProps> = ({
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
+        <MagnifyingGlassIcon className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
       </div>
       <select
         value={filters.paymentMethod}
@@ -60,6 +62,7 @@ const Filters: React.FC<FiltersProps> = ({
         onClick={onExport}
         className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
       >
+        <ArrowDownTrayIcon className="h-5 w-5" />
         Export
       </button>
     </div>

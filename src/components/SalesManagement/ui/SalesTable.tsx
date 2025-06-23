@@ -1,6 +1,7 @@
 import React from "react";
 import { formatCurrency, formatDate } from "../../../utils/calculations";
 import { Sale } from "../../../types";
+import { EyeIcon, TrashIcon } from "@heroicons/react/24/outline";
 
 interface SalesTableProps {
   sales: Sale[];
@@ -93,15 +94,15 @@ const SalesTable: React.FC<SalesTableProps> = ({ sales, onView, onDelete }) => (
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                 <button
                   onClick={() => onView(sale)}
-                  className="text-blue-600 hover:text-blue-900"
+                  className="text-blue-600 hover:text-blue-900 inline-flex items-center"
                 >
-                  View
+                  <EyeIcon className="h-5 w-5 mr-1" /> View
                 </button>
                 <button
                   onClick={() => onDelete(sale.id)}
-                  className="text-red-600 hover:text-red-900"
+                  className="text-red-600 hover:text-red-900 inline-flex items-center"
                 >
-                  Delete
+                  <TrashIcon className="h-5 w-5 mr-1" /> Delete
                 </button>
               </td>
             </tr>
