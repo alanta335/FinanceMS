@@ -3,6 +3,8 @@ import { Download, Calendar, TrendingUp, TrendingDown, DollarSign, FileText, Bar
 import { storage } from '../utils/storage';
 import { Sale, Expense, Employee } from '../types';
 import { formatCurrency, formatDate, calculateRevenue, calculateExpenses, calculateProfit, calculateProfitMargin } from '../utils/calculations';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
 
 interface ReportData {
   sales: Sale[];
@@ -174,57 +176,122 @@ const Reports: React.FC = () => {
 
     const reportTitle = `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Financial Report`;
     const dateRange = getDateRangeText();
-    
-    // Create a comprehensive report content
-    const reportContent = `
-      ${reportTitle}
-      Period: ${dateRange}
-      Generated on: ${new Date().toLocaleString()}
-      
-      FINANCIAL SUMMARY
-      ================
-      Total Revenue: ${formatCurrency(reportData.revenue)}
-      Total Expenses: ${formatCurrency(reportData.totalExpenses)}
-      Net Profit: ${formatCurrency(reportData.profit)}
-      Profit Margin: ${reportData.profitMargin.toFixed(2)}%
-      
-      SALES SUMMARY
-      =============
-      Total Sales: ${reportData.sales.length}
-      Average Sale Value: ${formatCurrency(reportData.revenue / (reportData.sales.length || 1))}
-      
-      TOP SELLING PRODUCTS
-      ===================
-      ${reportData.topProducts.map((product, index) => 
-        `${index + 1}. ${product.product} - ${product.quantity} units - ${formatCurrency(product.revenue)}`
-      ).join('\n')}
-      
-      EXPENSES BY CATEGORY
-      ===================
-      ${reportData.expensesByCategory.map(expense => 
-        `${expense.category}: ${formatCurrency(expense.amount)} (${expense.percentage.toFixed(1)}%)`
-      ).join('\n')}
-      
-      SALES BY PAYMENT METHOD
-      ======================
-      ${reportData.salesByPaymentMethod.map(payment => 
-        `${payment.method.toUpperCase()}: ${formatCurrency(payment.amount)} (${payment.count} transactions)`
-      ).join('\n')}
-    `;
+    const doc = new jsPDF();
+    let y = 10;
+    doc.setFontSize(16);
+    doc.text(reportTitle, 10, y);
+    y += 10;
+    doc.setFontSize(10);
+    doc.text(`Period: ${dateRange}`, 10, y);
+    y += 7;
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 10, y);
+    y += 10;
+    doc.setFontSize(12);
+    doc.text('FINANCIAL SUMMARY', 10, y);
+    y += 7;
+    doc.setFontSize(10);
+    doc.text(`Total Revenue: ${formatCurrency(reportData.revenue)}`, 10, y);
+    y += 6;
+    doc.text(`Total Expenses: ${formatCurrency(reportData.totalExpenses)}`, 10, y);
+    y += 6;
+    doc.text(`Net Profit: ${formatCurrency(reportData.profit)}`, 10, y);
+    y += 6;
+    doc.text(`Profit Margin: ${reportData.profitMargin.toFixed(2)}%`, 10, y);
+    y += 10;
+    doc.setFontSize(12);
+    doc.text('TOP SELLING PRODUCTS', 10, y);
+    y += 7;
+    doc.setFontSize(10);
+    reportData.topProducts.forEach((product, index) => {
+      doc.text(`${index + 1}. ${product.product} - ${product.quantity} units - ${formatCurrency(product.revenue)}`, 10, y);
+      y += 6;
+      if (y > 270) { doc.addPage(); y = 10; }
+    });
+    y += 4;
+    doc.setFontSize(12);
+    doc.text('EXPENSES BY CATEGORY', 10, y);
+    y += 7;
+    doc.setFontSize(10);
+    reportData.expensesByCategory.forEach(expense => {
+      doc.text(`${expense.category}: ${formatCurrency(expense.amount)} (${expense.percentage.toFixed(1)}%)`, 10, y);
+      y += 6;
+      if (y > 270) { doc.addPage(); y = 10; }
+    });
+    y += 4;
+    doc.setFontSize(12);
+    doc.text('SALES BY PAYMENT METHOD', 10, y);
+    y += 7;
+    doc.setFontSize(10);
+    reportData.salesByPaymentMethod.forEach(payment => {
+      doc.text(`${payment.method.toUpperCase()}: ${formatCurrency(payment.amount)} (${payment.count} transactions)`, 10, y);
+      y += 6;
+      if (y > 270) { doc.addPage(); y = 10; }
+    });
+    doc.save(`${reportType}_report_${getDateRangeText().replace(/\s+/g, '_')}.pdf`);
+  };
 
-    // Create and download the report
-    const blob = new Blob([reportContent], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${reportType}_report_${getDateRangeText().replace(/\s+/g, '_')}.txt`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+  const exportToExcel = () => {
+    if (!reportData) return;
+    // Prepare worksheet data
+    const summarySheet = [
+      ['Metric', 'Value'],
+      ['Total Revenue', formatCurrency(reportData.revenue)],
+      ['Total Expenses', formatCurrency(reportData.totalExpenses)],
+      ['Net Profit', formatCurrency(reportData.profit)],
+      ['Profit Margin', `${reportData.profitMargin.toFixed(2)}%`],
+      ['Total Sales', reportData.sales.length],
+      ['Total Expense Items', reportData.expenses.length],
+    ];
+    const topProductsSheet = [
+      ['Product', 'Quantity', 'Revenue'],
+      ...reportData.topProducts.map(p => [p.product, p.quantity, formatCurrency(p.revenue)])
+    ];
+    const expensesByCategorySheet = [
+      ['Category', 'Amount', 'Percentage'],
+      ...reportData.expensesByCategory.map(e => [e.category, formatCurrency(e.amount), `${e.percentage.toFixed(1)}%`])
+    ];
+    const salesByPaymentMethodSheet = [
+      ['Method', 'Amount', 'Count'],
+      ...reportData.salesByPaymentMethod.map(p => [p.method.toUpperCase(), formatCurrency(p.amount), p.count])
+    ];
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summarySheet), 'Summary');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(topProductsSheet), 'Top Products');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(expensesByCategorySheet), 'Expenses by Category');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(salesByPaymentMethodSheet), 'Sales by Payment');
+    // Sales data sheet
+    const salesHeaders = ['Date', 'Customer', 'Product', 'Quantity', 'Unit Price', 'Total', 'Payment Method', 'Sales Person'];
+    const salesData = reportData.sales.map(sale => [
+      formatDate(sale.date),
+      sale.customerName,
+      `${sale.product.brand} ${sale.product.model}`,
+      sale.quantity,
+      sale.unitPrice,
+      sale.totalAmount,
+      sale.paymentMethod,
+      sale.salesPerson
+    ]);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([salesHeaders, ...salesData]), 'Sales Data');
+    // Expenses data sheet
+    const expensesHeaders = ['Date', 'Category', 'Subcategory', 'Description', 'Amount', 'Vendor', 'Payment Method', 'Status'];
+    const expensesData = reportData.expenses.map(expense => [
+      formatDate(expense.date),
+      expense.category,
+      expense.subcategory,
+      expense.description,
+      expense.amount,
+      expense.vendor || '',
+      expense.paymentMethod,
+      expense.status
+    ]);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([expensesHeaders, ...expensesData]), 'Expenses Data');
+    // Export
+    XLSX.writeFile(wb, `${reportType}_financial_report_${getDateRangeText().replace(/\s+/g, '_')}.xlsx`);
   };
 
   const exportToCSV = () => {
     if (!reportData) return;
-
     // Sales CSV
     const salesHeaders = ['Date', 'Customer', 'Product', 'Quantity', 'Unit Price', 'Total', 'Payment Method', 'Sales Person'];
     const salesData = reportData.sales.map(sale => [
@@ -237,9 +304,7 @@ const Reports: React.FC = () => {
       sale.paymentMethod,
       sale.salesPerson
     ]);
-
     const salesCSV = [salesHeaders, ...salesData].map(row => row.join(',')).join('\n');
-
     // Expenses CSV
     const expensesHeaders = ['Date', 'Category', 'Subcategory', 'Description', 'Amount', 'Vendor', 'Payment Method', 'Status'];
     const expensesData = reportData.expenses.map(expense => [
@@ -252,58 +317,14 @@ const Reports: React.FC = () => {
       expense.paymentMethod,
       expense.status
     ]);
-
     const expensesCSV = [expensesHeaders, ...expensesData].map(row => row.join(',')).join('\n');
-
     // Create combined report
     const combinedCSV = `SALES DATA\n${salesCSV}\n\nEXPENSES DATA\n${expensesCSV}`;
-
     const blob = new Blob([combinedCSV], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `${reportType}_report_${getDateRangeText().replace(/\s+/g, '_')}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  const exportToExcel = () => {
-    if (!reportData) return;
-
-    // Create a comprehensive Excel-like format
-    const excelContent = [
-      ['FINANCIAL REPORT'],
-      [`Period: ${getDateRangeText()}`],
-      [`Generated: ${new Date().toLocaleString()}`],
-      [''],
-      ['SUMMARY'],
-      ['Metric', 'Value'],
-      ['Total Revenue', formatCurrency(reportData.revenue)],
-      ['Total Expenses', formatCurrency(reportData.totalExpenses)],
-      ['Net Profit', formatCurrency(reportData.profit)],
-      ['Profit Margin', `${reportData.profitMargin.toFixed(2)}%`],
-      ['Total Sales', reportData.sales.length],
-      ['Total Expense Items', reportData.expenses.length],
-      [''],
-      ['TOP PRODUCTS'],
-      ['Product', 'Quantity', 'Revenue'],
-      ...reportData.topProducts.map(p => [p.product, p.quantity, formatCurrency(p.revenue)]),
-      [''],
-      ['EXPENSES BY CATEGORY'],
-      ['Category', 'Amount', 'Percentage'],
-      ...reportData.expensesByCategory.map(e => [e.category, formatCurrency(e.amount), `${e.percentage.toFixed(1)}%`]),
-      [''],
-      ['SALES BY PAYMENT METHOD'],
-      ['Method', 'Amount', 'Count'],
-      ...reportData.salesByPaymentMethod.map(p => [p.method.toUpperCase(), formatCurrency(p.amount), p.count])
-    ];
-
-    const csvContent = excelContent.map(row => row.join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${reportType}_financial_report_${getDateRangeText().replace(/\s+/g, '_')}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
