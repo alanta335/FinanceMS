@@ -1,8 +1,127 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Filter, Download, Edit2, Trash2, Eye, Users, Calendar, DollarSign, Award, RefreshCw } from 'lucide-react';
+import { RefreshCw, Plus, Users, Award, DollarSign, Search, Download, Eye, Edit2, Trash2 } from 'lucide-react';
 import { storage } from '../utils/storage';
 import { Employee } from '../types';
-import { formatCurrency, formatDate, generateId } from '../utils/calculations';
+
+// Utility functions
+const formatDate = (date: Date | string) => {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleDateString();
+};
+const formatCurrency = (amount: number) => `₹${amount.toLocaleString('en-IN')}`;
+const generateId = () => crypto.randomUUID();
+
+// Table Row Component
+const EmployeeRow: React.FC<{
+  employee: Employee;
+  onView: (e: Employee) => void;
+  onEdit: (e: Employee) => void;
+  onToggle: (id: string, status: boolean) => void;
+  onDelete: (id: string) => void;
+}> = ({ employee, onView, onEdit, onToggle, onDelete }) => (
+  <tr key={employee.id} className="hover:bg-gray-50">
+    <td className="px-6 py-4 whitespace-nowrap">
+      <div>
+        <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+        <div className="text-sm text-gray-500">{employee.email}</div>
+        <div className="text-sm text-gray-500">{employee.phone}</div>
+      </div>
+    </td>
+    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{employee.position}</td>
+    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{employee.department || 'N/A'}</td>
+    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{formatCurrency(employee.baseSalary)}</td>
+    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{employee.commissionRate}%</td>
+    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatDate(employee.joinDate)}</td>
+    <td className="px-6 py-4 whitespace-nowrap">
+      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${employee.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{employee.isActive ? 'Active' : 'Inactive'}</span>
+    </td>
+    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+      <div className="flex items-center space-x-2">
+        <button onClick={() => onView(employee)} className="text-blue-600 hover:text-blue-900" title="View Details"><Eye className="h-4 w-4" /></button>
+        <button onClick={() => onEdit(employee)} className="text-green-600 hover:text-green-900" title="Edit"><Edit2 className="h-4 w-4" /></button>
+        <button onClick={() => onToggle(employee.id, employee.isActive)} className={employee.isActive ? 'text-yellow-600 hover:text-yellow-900' : 'text-green-600 hover:text-green-900'} title={employee.isActive ? 'Deactivate' : 'Activate'}>{employee.isActive ? '⏸' : '▶'}</button>
+        <button onClick={() => onDelete(employee.id)} className="text-red-600 hover:text-red-900" title="Delete"><Trash2 className="h-4 w-4" /></button>
+      </div>
+    </td>
+  </tr>
+);
+
+// Modal Form Component
+const EmployeeForm: React.FC<{
+  employee: typeof initialEmployee;
+  setEmployee: React.Dispatch<React.SetStateAction<typeof initialEmployee>>;
+  positions: string[];
+  departments: string[];
+  onSubmit: () => void;
+  onCancel: () => void;
+  submitLabel: string;
+}> = ({ employee, setEmployee, positions, departments, onSubmit, onCancel, submitLabel }) => (
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+      <input type="text" value={employee.name} onChange={e => setEmployee(emp => ({ ...emp, name: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
+      <select value={employee.position} onChange={e => setEmployee(emp => ({ ...emp, position: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+        <option value="">Select Position</option>
+        {positions.map(position => <option key={position} value={position}>{position}</option>)}
+      </select>
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+      <select value={employee.department} onChange={e => setEmployee(emp => ({ ...emp, department: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+        <option value="">Select Department</option>
+        {departments.map(dept => <option key={dept} value={dept}>{dept}</option>)}
+      </select>
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Base Salary</label>
+      <input type="number" min="0" value={employee.baseSalary} onChange={e => setEmployee(emp => ({ ...emp, baseSalary: parseFloat(e.target.value) }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Commission Rate (%)</label>
+      <input type="number" min="0" max="100" step="0.1" value={employee.commissionRate} onChange={e => setEmployee(emp => ({ ...emp, commissionRate: parseFloat(e.target.value) }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+      <input type="tel" value={employee.phone} onChange={e => setEmployee(emp => ({ ...emp, phone: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+      <input type="email" value={employee.email} onChange={e => setEmployee(emp => ({ ...emp, email: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Emergency Contact</label>
+      <input type="tel" value={employee.emergencyContact} onChange={e => setEmployee(emp => ({ ...emp, emergencyContact: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+    </div>
+    <div className="md:col-span-2">
+      <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+      <textarea value={employee.address} onChange={e => setEmployee(emp => ({ ...emp, address: e.target.value }))} rows={2} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Bank Account</label>
+      <input type="text" value={employee.bankAccount} onChange={e => setEmployee(emp => ({ ...emp, bankAccount: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">PAN Number</label>
+      <input type="text" value={employee.panNumber} onChange={e => setEmployee(emp => ({ ...emp, panNumber: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+    </div>
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">Aadhar Number</label>
+      <input type="text" value={employee.aadharNumber} onChange={e => setEmployee(emp => ({ ...emp, aadharNumber: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+    </div>
+    <div className="md:col-span-2 flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200">
+      <button onClick={onCancel} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+      <button onClick={onSubmit} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">{submitLabel}</button>
+    </div>
+  </div>
+);
+
+// Initial employee state
+const initialEmployee = {
+  name: '', position: '', department: '', baseSalary: 0, commissionRate: 5, phone: '', email: '', address: '', emergencyContact: '', bankAccount: '', panNumber: '', aadharNumber: ''
+};
 
 const EmployeeManagement: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -450,70 +569,15 @@ const EmployeeManagement: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredEmployees.map((employee) => (
-                <tr key={employee.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{employee.name}</div>
-                      <div className="text-sm text-gray-500">{employee.email}</div>
-                      <div className="text-sm text-gray-500">{employee.phone}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {employee.position}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {employee.department || 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {formatCurrency(employee.baseSalary)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {employee.commissionRate}%
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatDate(employee.joinDate)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      employee.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {employee.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => setSelectedEmployee(employee)}
-                        className="text-blue-600 hover:text-blue-900"
-                        title="View Details"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleEditEmployee(employee)}
-                        className="text-green-600 hover:text-green-900"
-                        title="Edit"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleToggleStatus(employee.id, employee.isActive)}
-                        className={`${employee.isActive ? 'text-yellow-600 hover:text-yellow-900' : 'text-green-600 hover:text-green-900'}`}
-                        title={employee.isActive ? 'Deactivate' : 'Activate'}
-                      >
-                        {employee.isActive ? '⏸' : '▶'}
-                      </button>
-                      <button
-                        onClick={() => handleDeleteEmployee(employee.id)}
-                        className="text-red-600 hover:text-red-900"
-                        title="Delete"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+              {filteredEmployees.map(employee => (
+                <EmployeeRow
+                  key={employee.id}
+                  employee={employee}
+                  onView={setSelectedEmployee}
+                  onEdit={handleEditEmployee}
+                  onToggle={handleToggleStatus}
+                  onDelete={handleDeleteEmployee}
+                />
               ))}
             </tbody>
           </table>
@@ -525,155 +589,15 @@ const EmployeeManagement: React.FC = () => {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Add New Employee</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                <input
-                  type="text"
-                  value={newEmployee.name}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
-                <select
-                  value={newEmployee.position}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, position: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Select Position</option>
-                  {positions.map(position => (
-                    <option key={position} value={position}>{position}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                <select
-                  value={newEmployee.department}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, department: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Select Department</option>
-                  {departments.map(dept => (
-                    <option key={dept} value={dept}>{dept}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Base Salary</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={newEmployee.baseSalary}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, baseSalary: parseFloat(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Commission Rate (%)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={newEmployee.commissionRate}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, commissionRate: parseFloat(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <input
-                  type="tel"
-                  value={newEmployee.phone}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  value={newEmployee.email}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Emergency Contact</label>
-                <input
-                  type="tel"
-                  value={newEmployee.emergencyContact}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, emergencyContact: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                <textarea
-                  value={newEmployee.address}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, address: e.target.value })}
-                  rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Bank Account</label>
-                <input
-                  type="text"
-                  value={newEmployee.bankAccount}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, bankAccount: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">PAN Number</label>
-                <input
-                  type="text"
-                  value={newEmployee.panNumber}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, panNumber: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Aadhar Number</label>
-                <input
-                  type="text"
-                  value={newEmployee.aadharNumber}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, aadharNumber: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200">
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddEmployee}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Add Employee
-              </button>
-            </div>
+            <EmployeeForm
+              employee={newEmployee}
+              setEmployee={setNewEmployee}
+              positions={positions}
+              departments={departments}
+              onSubmit={handleAddEmployee}
+              onCancel={() => setShowAddModal(false)}
+              submitLabel="Add Employee"
+            />
           </div>
         </div>
       )}
@@ -683,155 +607,15 @@ const EmployeeManagement: React.FC = () => {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Employee</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                <input
-                  type="text"
-                  value={newEmployee.name}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
-                <select
-                  value={newEmployee.position}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, position: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Select Position</option>
-                  {positions.map(position => (
-                    <option key={position} value={position}>{position}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                <select
-                  value={newEmployee.department}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, department: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Select Department</option>
-                  {departments.map(dept => (
-                    <option key={dept} value={dept}>{dept}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Base Salary</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={newEmployee.baseSalary}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, baseSalary: parseFloat(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Commission Rate (%)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={newEmployee.commissionRate}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, commissionRate: parseFloat(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <input
-                  type="tel"
-                  value={newEmployee.phone}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  value={newEmployee.email}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Emergency Contact</label>
-                <input
-                  type="tel"
-                  value={newEmployee.emergencyContact}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, emergencyContact: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                <textarea
-                  value={newEmployee.address}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, address: e.target.value })}
-                  rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Bank Account</label>
-                <input
-                  type="text"
-                  value={newEmployee.bankAccount}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, bankAccount: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">PAN Number</label>
-                <input
-                  type="text"
-                  value={newEmployee.panNumber}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, panNumber: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Aadhar Number</label>
-                <input
-                  type="text"
-                  value={newEmployee.aadharNumber}
-                  onChange={(e) => setNewEmployee({ ...newEmployee, aadharNumber: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200">
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdateEmployee}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Update Employee
-              </button>
-            </div>
+            <EmployeeForm
+              employee={newEmployee}
+              setEmployee={setNewEmployee}
+              positions={positions}
+              departments={departments}
+              onSubmit={handleUpdateEmployee}
+              onCancel={() => setShowEditModal(false)}
+              submitLabel="Update Employee"
+            />
           </div>
         </div>
       )}
