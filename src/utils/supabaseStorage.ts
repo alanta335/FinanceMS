@@ -1,76 +1,101 @@
 import { supabase } from '../lib/supabase';
 import { Sale, Expense, Employee, Product } from '../types';
 
-// Error handling utility
-const handleSupabaseError = (error: any, operation: string) => {
+// --- Error Handling ---
+const handleSupabaseError = (error: unknown, operation: string) => {
+  const message = typeof error === 'object' && error !== null && 'message' in error ? (error as { message?: string }).message : undefined;
   console.error(`Supabase ${operation} error:`, error);
-  throw new Error(`Failed to ${operation}: ${error.message || 'Unknown error'}`);
+  throw new Error(`Failed to ${operation}: ${message || 'Unknown error'}`);
 };
 
-// Transform database row to application types
-const transformSaleFromDB = (dbSale: any): Sale => ({
-  id: dbSale.id,
-  date: new Date(dbSale.date),
-  product: {
-    id: dbSale.product_id || '',
-    name: dbSale.products?.name || '',
-    category: dbSale.products?.category || '',
-    brand: dbSale.products?.brand || '',
-    model: dbSale.products?.model || '',
-    serialNumber: dbSale.products?.serial_number || '',
-    imei: dbSale.products?.imei || '',
-    warrantyPeriod: dbSale.products?.warranty_period || 12
-  },
-  quantity: dbSale.quantity,
-  unitPrice: dbSale.unit_price,
-  totalAmount: dbSale.total_amount,
-  paymentMethod: dbSale.payment_method as 'cash' | 'card' | 'emi' | 'upi',
-  customerName: dbSale.customer_name,
-  customerPhone: dbSale.customer_phone,
-  salesPerson: dbSale.sales_person,
-  commission: dbSale.commission,
-  isReturned: dbSale.is_returned,
-  warrantyStartDate: new Date(dbSale.warranty_start_date),
-  notes: dbSale.notes || ''
-});
+// --- Transformations ---
+type DBProduct = {
+  id?: string;
+  name?: string;
+  category?: string;
+  brand?: string;
+  model?: string;
+  serial_number?: string;
+  imei?: string;
+  warranty_period?: number;
+};
 
-const transformExpenseFromDB = (dbExpense: any): Expense => ({
-  id: dbExpense.id,
-  date: new Date(dbExpense.date),
-  category: dbExpense.category,
-  subcategory: dbExpense.subcategory,
-  amount: dbExpense.amount,
-  description: dbExpense.description,
-  vendor: dbExpense.vendor || '',
-  receipt: dbExpense.receipt || '',
+const transformSaleFromDB = (dbSale: Record<string, unknown>): Sale => {
+  const products = dbSale.products as DBProduct | undefined;
+  return {
+    id: dbSale.id as string,
+    date: new Date(dbSale.date as string),
+    product: {
+      id: (dbSale.product_id as string) || '',
+      name: products?.name || '',
+      category: products?.category || '',
+      brand: products?.brand || '',
+      model: products?.model || '',
+      serialNumber: products?.serial_number || '',
+      imei: products?.imei || '',
+      warrantyPeriod: products?.warranty_period || 12
+    },
+    quantity: dbSale.quantity as number,
+    unitPrice: dbSale.unit_price as number,
+    totalAmount: dbSale.total_amount as number,
+    paymentMethod: dbSale.payment_method as 'cash' | 'card' | 'emi' | 'upi',
+    customerName: dbSale.customer_name as string,
+    customerPhone: dbSale.customer_phone as string,
+    salesPerson: dbSale.sales_person as string,
+    commission: dbSale.commission as number,
+    isReturned: dbSale.is_returned as boolean,
+    warrantyStartDate: new Date(dbSale.warranty_start_date as string),
+    notes: (dbSale.notes as string) || ''
+  };
+};
+
+const transformExpenseFromDB = (dbExpense: Record<string, unknown>): Expense => ({
+  id: dbExpense.id as string,
+  date: new Date(dbExpense.date as string),
+  category: dbExpense.category as string,
+  subcategory: dbExpense.subcategory as string,
+  amount: dbExpense.amount as number,
+  description: dbExpense.description as string,
+  vendor: (dbExpense.vendor as string) || '',
+  receipt: (dbExpense.receipt as string) || '',
   paymentMethod: dbExpense.payment_method as 'cash' | 'card' | 'cheque' | 'online',
-  approvedBy: dbExpense.approved_by || '',
+  approvedBy: (dbExpense.approved_by as string) || '',
   status: dbExpense.status as 'pending' | 'approved' | 'rejected',
-  isRecurring: dbExpense.is_recurring,
+  isRecurring: dbExpense.is_recurring as boolean,
   recurringFrequency: dbExpense.recurring_frequency as 'daily' | 'weekly' | 'monthly' | 'yearly' | undefined,
-  from_location: dbExpense.from_location || '',
-  to_location: dbExpense.to_location || ''
+  from_location: (dbExpense.from_location as string) || '',
+  to_location: (dbExpense.to_location as string) || ''
 });
 
-const transformEmployeeFromDB = (dbEmployee: any): Employee => ({
-  id: dbEmployee.id,
-  name: dbEmployee.name,
-  position: dbEmployee.position,
-  department: dbEmployee.department || '',
-  baseSalary: dbEmployee.base_salary,
-  commissionRate: dbEmployee.commission_rate,
-  joinDate: new Date(dbEmployee.join_date),
-  isActive: dbEmployee.is_active,
-  phone: dbEmployee.phone,
-  email: dbEmployee.email,
-  address: dbEmployee.address || '',
-  emergencyContact: dbEmployee.emergency_contact || '',
-  bankAccount: dbEmployee.bank_account || '',
-  panNumber: dbEmployee.pan_number || '',
-  aadharNumber: dbEmployee.aadhar_number || ''
+const transformEmployeeFromDB = (dbEmployee: Record<string, unknown>): Employee => ({
+  id: dbEmployee.id as string,
+  name: dbEmployee.name as string,
+  position: dbEmployee.position as string,
+  department: (dbEmployee.department as string) || '',
+  baseSalary: dbEmployee.base_salary as number,
+  commissionRate: dbEmployee.commission_rate as number,
+  joinDate: new Date(dbEmployee.join_date as string),
+  isActive: dbEmployee.is_active as boolean,
+  phone: dbEmployee.phone as string,
+  email: dbEmployee.email as string,
+  address: (dbEmployee.address as string) || '',
+  emergencyContact: (dbEmployee.emergency_contact as string) || '',
+  bankAccount: (dbEmployee.bank_account as string) || '',
+  panNumber: (dbEmployee.pan_number as string) || '',
+  aadharNumber: (dbEmployee.aadhar_number as string) || ''
 });
 
-// Transform application types to database format
+const transformProductFromDB = (product: Record<string, unknown>): Product => ({
+  id: product.id as string,
+  name: product.name as string,
+  category: product.category as string,
+  brand: product.brand as string,
+  model: product.model as string,
+  serialNumber: (product.serial_number as string) || '',
+  imei: (product.imei as string) || '',
+  warrantyPeriod: product.warranty_period as number
+});
+
 const transformSaleToDB = (sale: Sale) => ({
   id: sale.id,
   date: sale.date.toISOString(),
@@ -135,331 +160,191 @@ const transformProductToDB = (product: Product) => ({
   warranty_period: product.warrantyPeriod
 });
 
+// --- Utility: Create update object from partials ---
+type UpdateMap<T> = Partial<Record<keyof T, string | ((v: unknown) => unknown)>>;
+function createUpdateObject<T>(updates: Partial<T>, map: UpdateMap<T>) {
+  return Object.entries(map).reduce((acc, [key, dbKeyOrFn]) => {
+    const value = updates[key as keyof T];
+    if (value !== undefined) {
+      acc[typeof dbKeyOrFn === 'string' ? dbKeyOrFn : key] =
+        typeof dbKeyOrFn === 'function' ? dbKeyOrFn(value) : value;
+    }
+    return acc;
+  }, {} as Record<string, unknown>);
+}
+
+// --- Main Storage Class ---
 class SupabaseStorage {
-  // Sales operations
-  async getSales(): Promise<Sale[]> {
+  // --- Generic error wrapper ---
+  private async wrap<T>(operation: string, fn: () => Promise<T>): Promise<T> {
     try {
-      const { data, error } = await supabase
-        .from('sales')
-        .select(`
-          *,
-          products (
-            id,
-            name,
-            category,
-            brand,
-            model,
-            serial_number,
-            imei,
-            warranty_period
-          )
-        `)
-        .order('date', { ascending: false });
-
-      if (error) handleSupabaseError(error, 'fetch sales');
-      
-      return (data || []).map(transformSaleFromDB);
+      return await fn();
     } catch (error) {
-      handleSupabaseError(error, 'fetch sales');
-      return [];
+      handleSupabaseError(error, operation);
+      throw error;
     }
   }
 
-  async addSale(sale: Sale): Promise<void> {
-    try {
-      // First, create or update the product
-      const productData = transformProductToDB(sale.product);
-      const { error: productError } = await supabase
-        .from('products')
-        .upsert(productData);
+  // --- Sales ---
+  getSales = () => this.wrap('fetch sales', async () => {
+    const { data, error } = await supabase
+      .from('sales')
+      .select(`*, products (id, name, category, brand, model, serial_number, imei, warranty_period)`) 
+      .order('date', { ascending: false });
+    if (error) handleSupabaseError(error, 'fetch sales');
+    return (data || []).map(transformSaleFromDB);
+  });
 
-      if (productError) handleSupabaseError(productError, 'create product');
+  addSale = (sale: Sale) => this.wrap('add sale', async () => {
+    const productData = transformProductToDB(sale.product);
+    const { error: productError } = await supabase.from('products').upsert(productData);
+    if (productError) handleSupabaseError(productError, 'create product');
+    const saleData = transformSaleToDB(sale);
+    const { error: saleError } = await supabase.from('sales').insert(saleData);
+    if (saleError) handleSupabaseError(saleError, 'create sale');
+  });
 
-      // Then create the sale
-      const saleData = transformSaleToDB(sale);
-      const { error: saleError } = await supabase
-        .from('sales')
-        .insert(saleData);
+  updateSale = (id: string, updates: Partial<Sale>) => this.wrap('update sale', async () => {
+    const updateData = createUpdateObject(updates, {
+      quantity: 'quantity',
+      unitPrice: 'unit_price',
+      totalAmount: 'total_amount',
+      paymentMethod: 'payment_method',
+      customerName: 'customer_name',
+      customerPhone: 'customer_phone',
+      salesPerson: 'sales_person',
+      commission: 'commission',
+      isReturned: 'is_returned',
+      notes: 'notes',
+      date: (v: unknown) => (v as Date).toISOString(),
+      warrantyStartDate: (v: unknown) => (v as Date).toISOString().split('T')[0]
+    });
+    const { error } = await supabase.from('sales').update(updateData).eq('id', id);
+    if (error) handleSupabaseError(error, 'update sale');
+  });
 
-      if (saleError) handleSupabaseError(saleError, 'create sale');
-    } catch (error) {
-      handleSupabaseError(error, 'add sale');
-    }
-  }
+  deleteSale = (id: string) => this.wrap('delete sale', async () => {
+    const { error } = await supabase.from('sales').delete().eq('id', id);
+    if (error) handleSupabaseError(error, 'delete sale');
+  });
 
-  async updateSale(id: string, updates: Partial<Sale>): Promise<void> {
-    try {
-      const updateData: any = {};
-      
-      if (updates.quantity !== undefined) updateData.quantity = updates.quantity;
-      if (updates.unitPrice !== undefined) updateData.unit_price = updates.unitPrice;
-      if (updates.totalAmount !== undefined) updateData.total_amount = updates.totalAmount;
-      if (updates.paymentMethod !== undefined) updateData.payment_method = updates.paymentMethod;
-      if (updates.customerName !== undefined) updateData.customer_name = updates.customerName;
-      if (updates.customerPhone !== undefined) updateData.customer_phone = updates.customerPhone;
-      if (updates.salesPerson !== undefined) updateData.sales_person = updates.salesPerson;
-      if (updates.commission !== undefined) updateData.commission = updates.commission;
-      if (updates.isReturned !== undefined) updateData.is_returned = updates.isReturned;
-      if (updates.notes !== undefined) updateData.notes = updates.notes;
-      if (updates.date !== undefined) updateData.date = updates.date.toISOString();
-      if (updates.warrantyStartDate !== undefined) updateData.warranty_start_date = updates.warrantyStartDate.toISOString().split('T')[0];
+  // --- Expenses ---
+  getExpenses = () => this.wrap('fetch expenses', async () => {
+    const { data, error } = await supabase.from('expenses').select('*').order('date', { ascending: false });
+    if (error) handleSupabaseError(error, 'fetch expenses');
+    return (data || []).map(transformExpenseFromDB);
+  });
 
-      const { error } = await supabase
-        .from('sales')
-        .update(updateData)
-        .eq('id', id);
+  addExpense = (expense: Expense) => this.wrap('add expense', async () => {
+    const expenseData = transformExpenseToDB(expense);
+    const { error } = await supabase.from('expenses').insert(expenseData);
+    if (error) handleSupabaseError(error, 'create expense');
+  });
 
-      if (error) handleSupabaseError(error, 'update sale');
-    } catch (error) {
-      handleSupabaseError(error, 'update sale');
-    }
-  }
+  updateExpense = (id: string, updates: Partial<Expense>) => this.wrap('update expense', async () => {
+    const updateData = createUpdateObject(updates, {
+      category: 'category',
+      subcategory: 'subcategory',
+      amount: 'amount',
+      description: 'description',
+      vendor: 'vendor',
+      receipt: 'receipt',
+      paymentMethod: 'payment_method',
+      approvedBy: 'approved_by',
+      status: 'status',
+      isRecurring: 'is_recurring',
+      recurringFrequency: 'recurring_frequency',
+      date: (v: unknown) => (v as Date).toISOString()
+    });
+    const { error } = await supabase.from('expenses').update(updateData).eq('id', id);
+    if (error) handleSupabaseError(error, 'update expense');
+  });
 
-  async deleteSale(id: string): Promise<void> {
-    try {
-      const { error } = await supabase
-        .from('sales')
-        .delete()
-        .eq('id', id);
+  deleteExpense = (id: string) => this.wrap('delete expense', async () => {
+    const { error } = await supabase.from('expenses').delete().eq('id', id);
+    if (error) handleSupabaseError(error, 'delete expense');
+  });
 
-      if (error) handleSupabaseError(error, 'delete sale');
-    } catch (error) {
-      handleSupabaseError(error, 'delete sale');
-    }
-  }
+  // --- Employees ---
+  getEmployees = () => this.wrap('fetch employees', async () => {
+    const { data, error } = await supabase.from('employees').select('*').order('name', { ascending: true });
+    if (error) handleSupabaseError(error, 'fetch employees');
+    return (data || []).map(transformEmployeeFromDB);
+  });
 
-  // Expenses operations
-  async getExpenses(): Promise<Expense[]> {
-    try {
-      const { data, error } = await supabase
-        .from('expenses')
-        .select('*')
-        .order('date', { ascending: false });
+  addEmployee = (employee: Employee) => this.wrap('add employee', async () => {
+    const employeeData = transformEmployeeToDB(employee);
+    const { error } = await supabase.from('employees').insert(employeeData);
+    if (error) handleSupabaseError(error, 'create employee');
+  });
 
-      if (error) handleSupabaseError(error, 'fetch expenses');
-      
-      return (data || []).map(transformExpenseFromDB);
-    } catch (error) {
-      handleSupabaseError(error, 'fetch expenses');
-      return [];
-    }
-  }
+  updateEmployee = (id: string, updates: Partial<Employee>) => this.wrap('update employee', async () => {
+    const updateData = createUpdateObject(updates, {
+      name: 'name',
+      position: 'position',
+      department: 'department',
+      baseSalary: 'base_salary',
+      commissionRate: 'commission_rate',
+      isActive: 'is_active',
+      phone: 'phone',
+      email: 'email',
+      address: 'address',
+      emergencyContact: 'emergency_contact',
+      bankAccount: 'bank_account',
+      panNumber: 'pan_number',
+      aadharNumber: 'aadhar_number',
+      joinDate: (v: unknown) => (v as Date).toISOString().split('T')[0]
+    });
+    const { error } = await supabase.from('employees').update(updateData).eq('id', id);
+    if (error) handleSupabaseError(error, 'update employee');
+  });
 
-  async addExpense(expense: Expense): Promise<void> {
-    try {
-      const expenseData = transformExpenseToDB(expense);
-      const { error } = await supabase
-        .from('expenses')
-        .insert(expenseData);
+  deleteEmployee = (id: string) => this.wrap('delete employee', async () => {
+    const { error } = await supabase.from('employees').delete().eq('id', id);
+    if (error) handleSupabaseError(error, 'delete employee');
+  });
 
-      if (error) handleSupabaseError(error, 'create expense');
-    } catch (error) {
-      handleSupabaseError(error, 'add expense');
-    }
-  }
+  // --- Products ---
+  getProducts = () => this.wrap('fetch products', async () => {
+    const { data, error } = await supabase.from('products').select('*').order('name', { ascending: true });
+    if (error) handleSupabaseError(error, 'fetch products');
+    return (data || []).map(transformProductFromDB);
+  });
 
-  async updateExpense(id: string, updates: Partial<Expense>): Promise<void> {
-    try {
-      const updateData: any = {};
-      
-      if (updates.category !== undefined) updateData.category = updates.category;
-      if (updates.subcategory !== undefined) updateData.subcategory = updates.subcategory;
-      if (updates.amount !== undefined) updateData.amount = updates.amount;
-      if (updates.description !== undefined) updateData.description = updates.description;
-      if (updates.vendor !== undefined) updateData.vendor = updates.vendor;
-      if (updates.receipt !== undefined) updateData.receipt = updates.receipt;
-      if (updates.paymentMethod !== undefined) updateData.payment_method = updates.paymentMethod;
-      if (updates.approvedBy !== undefined) updateData.approved_by = updates.approvedBy;
-      if (updates.status !== undefined) updateData.status = updates.status;
-      if (updates.isRecurring !== undefined) updateData.is_recurring = updates.isRecurring;
-      if (updates.recurringFrequency !== undefined) updateData.recurring_frequency = updates.recurringFrequency;
-      if (updates.date !== undefined) updateData.date = updates.date.toISOString();
+  addProduct = (product: Product) => this.wrap('add product', async () => {
+    const productData = transformProductToDB(product);
+    const { error } = await supabase.from('products').insert(productData);
+    if (error) handleSupabaseError(error, 'create product');
+  });
 
-      const { error } = await supabase
-        .from('expenses')
-        .update(updateData)
-        .eq('id', id);
+  updateProduct = (id: string, updates: Partial<Product>) => this.wrap('update product', async () => {
+    const updateData = createUpdateObject(updates, {
+      name: 'name',
+      category: 'category',
+      brand: 'brand',
+      model: 'model',
+      serialNumber: 'serial_number',
+      imei: 'imei',
+      warrantyPeriod: 'warranty_period'
+    });
+    const { error } = await supabase.from('products').update(updateData).eq('id', id);
+    if (error) handleSupabaseError(error, 'update product');
+  });
 
-      if (error) handleSupabaseError(error, 'update expense');
-    } catch (error) {
-      handleSupabaseError(error, 'update expense');
-    }
-  }
+  deleteProduct = (id: string) => this.wrap('delete product', async () => {
+    const { error } = await supabase.from('products').delete().eq('id', id);
+    if (error) handleSupabaseError(error, 'delete product');
+  });
 
-  async deleteExpense(id: string): Promise<void> {
-    try {
-      const { error } = await supabase
-        .from('expenses')
-        .delete()
-        .eq('id', id);
-
-      if (error) handleSupabaseError(error, 'delete expense');
-    } catch (error) {
-      handleSupabaseError(error, 'delete expense');
-    }
-  }
-
-  // Employees operations
-  async getEmployees(): Promise<Employee[]> {
-    try {
-      const { data, error } = await supabase
-        .from('employees')
-        .select('*')
-        .order('name', { ascending: true });
-
-      if (error) handleSupabaseError(error, 'fetch employees');
-      
-      return (data || []).map(transformEmployeeFromDB);
-    } catch (error) {
-      handleSupabaseError(error, 'fetch employees');
-      return [];
-    }
-  }
-
-  async addEmployee(employee: Employee): Promise<void> {
-    try {
-      const employeeData = transformEmployeeToDB(employee);
-      const { error } = await supabase
-        .from('employees')
-        .insert(employeeData);
-
-      if (error) handleSupabaseError(error, 'create employee');
-    } catch (error) {
-      handleSupabaseError(error, 'add employee');
-    }
-  }
-
-  async updateEmployee(id: string, updates: Partial<Employee>): Promise<void> {
-    try {
-      const updateData: any = {};
-      
-      if (updates.name !== undefined) updateData.name = updates.name;
-      if (updates.position !== undefined) updateData.position = updates.position;
-      if (updates.department !== undefined) updateData.department = updates.department;
-      if (updates.baseSalary !== undefined) updateData.base_salary = updates.baseSalary;
-      if (updates.commissionRate !== undefined) updateData.commission_rate = updates.commissionRate;
-      if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
-      if (updates.phone !== undefined) updateData.phone = updates.phone;
-      if (updates.email !== undefined) updateData.email = updates.email;
-      if (updates.address !== undefined) updateData.address = updates.address;
-      if (updates.emergencyContact !== undefined) updateData.emergency_contact = updates.emergencyContact;
-      if (updates.bankAccount !== undefined) updateData.bank_account = updates.bankAccount;
-      if (updates.panNumber !== undefined) updateData.pan_number = updates.panNumber;
-      if (updates.aadharNumber !== undefined) updateData.aadhar_number = updates.aadharNumber;
-      if (updates.joinDate !== undefined) updateData.join_date = updates.joinDate.toISOString().split('T')[0];
-
-      const { error } = await supabase
-        .from('employees')
-        .update(updateData)
-        .eq('id', id);
-
-      if (error) handleSupabaseError(error, 'update employee');
-    } catch (error) {
-      handleSupabaseError(error, 'update employee');
-    }
-  }
-
-  async deleteEmployee(id: string): Promise<void> {
-    try {
-      const { error } = await supabase
-        .from('employees')
-        .delete()
-        .eq('id', id);
-
-      if (error) handleSupabaseError(error, 'delete employee');
-    } catch (error) {
-      handleSupabaseError(error, 'delete employee');
-    }
-  }
-
-  // Products operations
-  async getProducts(): Promise<Product[]> {
-    try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('name', { ascending: true });
-
-      if (error) handleSupabaseError(error, 'fetch products');
-      
-      return (data || []).map(product => ({
-        id: product.id,
-        name: product.name,
-        category: product.category,
-        brand: product.brand,
-        model: product.model,
-        serialNumber: product.serial_number || '',
-        imei: product.imei || '',
-        warrantyPeriod: product.warranty_period
-      }));
-    } catch (error) {
-      handleSupabaseError(error, 'fetch products');
-      return [];
-    }
-  }
-
-  async addProduct(product: Product): Promise<void> {
-    try {
-      const productData = transformProductToDB(product);
-      const { error } = await supabase
-        .from('products')
-        .insert(productData);
-
-      if (error) handleSupabaseError(error, 'create product');
-    } catch (error) {
-      handleSupabaseError(error, 'add product');
-    }
-  }
-
-  async updateProduct(id: string, updates: Partial<Product>): Promise<void> {
-    try {
-      const updateData: any = {};
-      
-      if (updates.name !== undefined) updateData.name = updates.name;
-      if (updates.category !== undefined) updateData.category = updates.category;
-      if (updates.brand !== undefined) updateData.brand = updates.brand;
-      if (updates.model !== undefined) updateData.model = updates.model;
-      if (updates.serialNumber !== undefined) updateData.serial_number = updates.serialNumber;
-      if (updates.imei !== undefined) updateData.imei = updates.imei;
-      if (updates.warrantyPeriod !== undefined) updateData.warranty_period = updates.warrantyPeriod;
-
-      const { error } = await supabase
-        .from('products')
-        .update(updateData)
-        .eq('id', id);
-
-      if (error) handleSupabaseError(error, 'update product');
-    } catch (error) {
-      handleSupabaseError(error, 'update product');
-    }
-  }
-
-  async deleteProduct(id: string): Promise<void> {
-    try {
-      const { error } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', id);
-
-      if (error) handleSupabaseError(error, 'delete product');
-    } catch (error) {
-      handleSupabaseError(error, 'delete product');
-    }
-  }
-
-  // Clear all data (for development/testing)
-  async clearAll(): Promise<void> {
-    try {
-      await Promise.all([
-        supabase.from('sales').delete().neq('id', ''),
-        supabase.from('expenses').delete().neq('id', ''),
-        supabase.from('employees').delete().neq('id', ''),
-        supabase.from('products').delete().neq('id', '')
-      ]);
-    } catch (error) {
-      handleSupabaseError(error, 'clear all data');
-    }
-  }
+  // --- Clear All (dev/testing) ---
+  clearAll = () => this.wrap('clear all data', async () => {
+    await Promise.all([
+      supabase.from('sales').delete().neq('id', ''),
+      supabase.from('expenses').delete().neq('id', ''),
+      supabase.from('employees').delete().neq('id', ''),
+      supabase.from('products').delete().neq('id', '')
+    ]);
+  });
 }
 
 export const supabaseStorage = new SupabaseStorage();
