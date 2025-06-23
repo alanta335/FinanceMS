@@ -143,7 +143,12 @@ const ExpenseManagement: React.FC = () => {
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         filters={filters}
-        setFilters={setFilters}
+        setFilters={(v) => setFilters({
+          category: v.category || "",
+          status: v.status || "",
+          paymentMethod: v.paymentMethod || "",
+          dateRange: v.dateRange || ""
+        })}
         expenseCategories={expenseCategories}
         exportToCSV={exportToCSV}
       />

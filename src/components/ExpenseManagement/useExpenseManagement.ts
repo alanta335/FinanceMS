@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { storage } from "../../utils/storage";
 import { Expense } from "../../types";
+import { NewExpense } from "./types";
 import { generateId } from "../../utils/calculations";
 
 export const useExpenseManagement = () => {
@@ -19,15 +20,15 @@ export const useExpenseManagement = () => {
         paymentMethod: "",
         dateRange: "",
     });
-    const [newExpense, setNewExpense] = useState({
+    const [newExpense, setNewExpense] = useState<NewExpense>({
         category: "",
         subcategory: "",
         amount: 0,
         description: "",
         vendor: "",
-        paymentMethod: "cash" as const,
+        paymentMethod: "cash",
         isRecurring: false,
-        recurringFrequency: "monthly" as const,
+        recurringFrequency: "monthly",
     });
 
     const expenseCategories = [
