@@ -15,7 +15,9 @@ const SummaryCards: React.FC<Props> = ({ total, approved, pending }) => (
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-gray-600">Total Expenses</p>
-          <p className="text-2xl font-bold text-gray-900">{formatCurrency(total)}</p>
+          <p className="text-2xl font-bold text-gray-900">
+            {formatCurrency(total)}
+          </p>
         </div>
         <div className="p-3 bg-red-100 rounded-lg">
           <TrendingDown className="h-6 w-6 text-red-600" />
@@ -26,7 +28,9 @@ const SummaryCards: React.FC<Props> = ({ total, approved, pending }) => (
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-gray-600">Approved</p>
-          <p className="text-2xl font-bold text-green-600">{formatCurrency(approved)}</p>
+          <p className="text-2xl font-bold text-green-600">
+            {formatCurrency(approved)}
+          </p>
         </div>
         <div className="p-3 bg-green-100 rounded-lg">
           <Calendar className="h-6 w-6 text-green-600" />
@@ -37,7 +41,9 @@ const SummaryCards: React.FC<Props> = ({ total, approved, pending }) => (
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-gray-600">Pending Approval</p>
-          <p className="text-2xl font-bold text-yellow-600">{formatCurrency(pending)}</p>
+          <p className="text-2xl font-bold text-yellow-600">
+            {formatCurrency(pending)}
+          </p>
         </div>
         <div className="p-3 bg-yellow-100 rounded-lg">
           <Filter className="h-6 w-6 text-yellow-600" />

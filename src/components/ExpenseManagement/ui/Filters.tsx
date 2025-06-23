@@ -1,13 +1,25 @@
 // ExpenseManagement UI: Filters and Search
 import React from "react";
 import { Search, Download } from "lucide-react";
-import { ExpenseCategory } from "../types";
+
+type ExpenseCategory = {
+  value: string;
+  label: string;
+  subcategories: string[];
+};
+
+type FiltersType = {
+  category: string;
+  status: string;
+  paymentMethod: string;
+  dateRange?: string;
+};
 
 type Props = {
   searchTerm: string;
   setSearchTerm: (v: string) => void;
-  filters: any;
-  setFilters: (v: any) => void;
+  filters: FiltersType;
+  setFilters: (v: FiltersType) => void;
   expenseCategories: ExpenseCategory[];
   exportToCSV: () => void;
 };
@@ -56,7 +68,9 @@ const Filters: React.FC<Props> = ({
       </select>
       <select
         value={filters.paymentMethod}
-        onChange={(e) => setFilters({ ...filters, paymentMethod: e.target.value })}
+        onChange={(e) =>
+          setFilters({ ...filters, paymentMethod: e.target.value })
+        }
         className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
       >
         <option value="">All Payment Methods</option>

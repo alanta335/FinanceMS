@@ -8,11 +8,10 @@ import {
   AddExpenseModal,
   ExpenseDetailsModal,
 } from "./ExpenseManagement";
-import { formatCurrency } from "../utils/calculations";
+import { Expense } from "../types";
 
 const ExpenseManagement: React.FC = () => {
   const {
-    expenses,
     filteredExpenses,
     searchTerm,
     setSearchTerm,
@@ -34,8 +33,6 @@ const ExpenseManagement: React.FC = () => {
     handleApproveExpense,
     handleRejectExpense,
     handleRefresh,
-    resetForm,
-    loadExpenses,
   } = useExpenseManagement();
 
   const exportToCSV = () => {
@@ -49,7 +46,7 @@ const ExpenseManagement: React.FC = () => {
       "Payment Method",
       "Status",
     ];
-    const csvData = filteredExpenses.map((expense) => [
+    const csvData = filteredExpenses.map((expense: Expense) => [
       expense.date,
       expense.category,
       expense.subcategory,
@@ -71,22 +68,31 @@ const ExpenseManagement: React.FC = () => {
     window.URL.revokeObjectURL(url);
   };
 
+  type ExpenseCategory = {
+    value: string;
+    label: string;
+    subcategories: string[];
+  };
+
   const getSelectedCategory = () => {
-    return expenseCategories.find((cat) => cat.value === newExpense.category);
+    return expenseCategories.find((cat: ExpenseCategory) => cat.value === newExpense.category);
   };
 
   const getTotalExpenses = () => {
-    return filteredExpenses.reduce((total, expense) => total + expense.amount, 0);
+    return filteredExpenses.reduce(
+      (total: number, expense: Expense) => total + expense.amount,
+      0
+    );
   };
   const getApprovedExpenses = () => {
     return filteredExpenses
-      .filter((expense) => expense.status === "approved")
-      .reduce((total, expense) => total + expense.amount, 0);
+      .filter((expense: Expense) => expense.status === "approved")
+      .reduce((total: number, expense: Expense) => total + expense.amount, 0);
   };
   const getPendingExpenses = () => {
     return filteredExpenses
-      .filter((expense) => expense.status === "pending")
-      .reduce((total, expense) => total + expense.amount, 0);
+      .filter((expense: Expense) => expense.status === "pending")
+      .reduce((total: number, expense: Expense) => total + expense.amount, 0);
   };
 
   if (loading) {
@@ -104,8 +110,12 @@ const ExpenseManagement: React.FC = () => {
     <div className="space-y-6 max-w-none">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Expense Management</h2>
-          <p className="text-gray-600">Track and manage all business expenses</p>
+          <h2 className="text-2xl font-bold text-gray-900">
+            Expense Management
+          </h2>
+          <p className="text-gray-600">
+            Track and manage all business expenses
+          </p>
         </div>
         <div className="flex items-center space-x-3">
           <button
