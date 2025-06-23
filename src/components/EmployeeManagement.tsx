@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Filter, Download, Edit2, Trash2, Eye, Users, Calendar, DollarSign, Award } from 'lucide-react';
+import { Plus, Search, Filter, Download, Edit2, Trash2, Eye, Users, Calendar, DollarSign, Award, RefreshCw } from 'lucide-react';
 import { storage } from '../utils/storage';
 import { Employee } from '../types';
 import { formatCurrency, formatDate, generateId } from '../utils/calculations';
@@ -11,6 +11,9 @@ const EmployeeManagement: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     position: '',
     status: '',
@@ -61,9 +64,32 @@ const EmployeeManagement: React.FC = () => {
     filterEmployees();
   }, [employees, searchTerm, filters]);
 
-  const loadEmployees = () => {
-    const employeesData = storage.getData<Employee>('employees');
-    setEmployees(employeesData);
+  const loadEmployees = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const employeesData = await storage.getData<Employee>('employees');
+      setEmployees(employeesData);
+    } catch (err) {
+      console.error('Error loading employees:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load employees data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true);
+      setError(null);
+      await storage.refreshData('employees');
+      await loadEmployees();
+    } catch (err) {
+      console.error('Error refreshing employees:', err);
+      setError(err instanceof Error ? err.message : 'Failed to refresh employees data');
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const filterEmployees = () => {
@@ -95,40 +121,17 @@ const EmployeeManagement: React.FC = () => {
     setFilteredEmployees(filtered);
   };
 
-  const handleAddEmployee = () => {
-    const employee: Employee = {
-      id: generateId(),
-      name: newEmployee.name,
-      position: newEmployee.position,
-      department: newEmployee.department,
-      baseSalary: newEmployee.baseSalary,
-      commissionRate: newEmployee.commissionRate,
-      joinDate: new Date(),
-      isActive: true,
-      phone: newEmployee.phone,
-      email: newEmployee.email,
-      address: newEmployee.address,
-      emergencyContact: newEmployee.emergencyContact,
-      bankAccount: newEmployee.bankAccount,
-      panNumber: newEmployee.panNumber,
-      aadharNumber: newEmployee.aadharNumber
-    };
-
-    storage.addItem('employees', employee);
-    loadEmployees();
-    setShowAddModal(false);
-    resetForm();
-  };
-
-  const handleUpdateEmployee = () => {
-    if (selectedEmployee) {
-      const updatedEmployee = {
-        ...selectedEmployee,
+  const handleAddEmployee = async () => {
+    try {
+      const employee: Employee = {
+        id: generateId(),
         name: newEmployee.name,
         position: newEmployee.position,
         department: newEmployee.department,
         baseSalary: newEmployee.baseSalary,
         commissionRate: newEmployee.commissionRate,
+        joinDate: new Date(),
+        isActive: true,
         phone: newEmployee.phone,
         email: newEmployee.email,
         address: newEmployee.address,
@@ -138,11 +141,44 @@ const EmployeeManagement: React.FC = () => {
         aadharNumber: newEmployee.aadharNumber
       };
 
-      storage.updateItem('employees', selectedEmployee.id, updatedEmployee);
-      loadEmployees();
-      setShowEditModal(false);
-      setSelectedEmployee(null);
+      await storage.addItem('employees', employee);
+      await loadEmployees();
+      setShowAddModal(false);
       resetForm();
+    } catch (err) {
+      console.error('Error adding employee:', err);
+      setError(err instanceof Error ? err.message : 'Failed to add employee');
+    }
+  };
+
+  const handleUpdateEmployee = async () => {
+    if (selectedEmployee) {
+      try {
+        const updatedEmployee = {
+          ...selectedEmployee,
+          name: newEmployee.name,
+          position: newEmployee.position,
+          department: newEmployee.department,
+          baseSalary: newEmployee.baseSalary,
+          commissionRate: newEmployee.commissionRate,
+          phone: newEmployee.phone,
+          email: newEmployee.email,
+          address: newEmployee.address,
+          emergencyContact: newEmployee.emergencyContact,
+          bankAccount: newEmployee.bankAccount,
+          panNumber: newEmployee.panNumber,
+          aadharNumber: newEmployee.aadharNumber
+        };
+
+        await storage.updateItem('employees', selectedEmployee.id, updatedEmployee);
+        await loadEmployees();
+        setShowEditModal(false);
+        setSelectedEmployee(null);
+        resetForm();
+      } catch (err) {
+        console.error('Error updating employee:', err);
+        setError(err instanceof Error ? err.message : 'Failed to update employee');
+      }
     }
   };
 
@@ -163,16 +199,26 @@ const EmployeeManagement: React.FC = () => {
     });
   };
 
-  const handleDeleteEmployee = (id: string) => {
+  const handleDeleteEmployee = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this employee?')) {
-      storage.deleteItem('employees', id);
-      loadEmployees();
+      try {
+        await storage.deleteItem('employees', id);
+        await loadEmployees();
+      } catch (err) {
+        console.error('Error deleting employee:', err);
+        setError(err instanceof Error ? err.message : 'Failed to delete employee');
+      }
     }
   };
 
-  const handleToggleStatus = (id: string, currentStatus: boolean) => {
-    storage.updateItem('employees', id, { isActive: !currentStatus });
-    loadEmployees();
+  const handleToggleStatus = async (id: string, currentStatus: boolean) => {
+    try {
+      await storage.updateItem('employees', id, { isActive: !currentStatus });
+      await loadEmployees();
+    } catch (err) {
+      console.error('Error toggling employee status:', err);
+      setError(err instanceof Error ? err.message : 'Failed to update employee status');
+    }
   };
 
   const handleEditEmployee = (employee: Employee) => {
@@ -222,6 +268,17 @@ const EmployeeManagement: React.FC = () => {
   const getActiveEmployees = () => filteredEmployees.filter(emp => emp.isActive).length;
   const getTotalSalaryBudget = () => filteredEmployees.filter(emp => emp.isActive).reduce((total, emp) => total + emp.baseSalary, 0);
 
+  if (loading) {
+    return (
+      <div className="space-y-6 max-w-none">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <span className="ml-3 text-gray-600">Loading employees...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-none">
       {/* Header */}
@@ -230,14 +287,37 @@ const EmployeeManagement: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-900">Employee Management</h2>
           <p className="text-gray-600">Manage employee information and payroll</p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Add Employee</span>
-        </button>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Add Employee</span>
+          </button>
+        </div>
       </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-700">{error}</p>
+          <button
+            onClick={() => setError(null)}
+            className="mt-2 text-red-600 hover:text-red-800 text-sm underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

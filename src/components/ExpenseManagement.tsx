@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Filter, Download, Edit2, Trash2, Eye, Calendar, TrendingDown } from 'lucide-react';
+import { Plus, Search, Filter, Download, Edit2, Trash2, Eye, Calendar, TrendingDown, RefreshCw } from 'lucide-react';
 import { storage } from '../utils/storage';
 import { Expense } from '../types';
 import { formatCurrency, formatDate, generateId } from '../utils/calculations';
@@ -10,6 +10,9 @@ const ExpenseManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     category: '',
     status: '',
@@ -48,9 +51,32 @@ const ExpenseManagement: React.FC = () => {
     filterExpenses();
   }, [expenses, searchTerm, filters]);
 
-  const loadExpenses = () => {
-    const expensesData = storage.getData<Expense>('expenses');
-    setExpenses(expensesData);
+  const loadExpenses = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const expensesData = await storage.getData<Expense>('expenses');
+      setExpenses(expensesData);
+    } catch (err) {
+      console.error('Error loading expenses:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load expenses data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true);
+      setError(null);
+      await storage.refreshData('expenses');
+      await loadExpenses();
+    } catch (err) {
+      console.error('Error refreshing expenses:', err);
+      setError(err instanceof Error ? err.message : 'Failed to refresh expenses data');
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const filterExpenses = () => {
@@ -79,25 +105,30 @@ const ExpenseManagement: React.FC = () => {
     setFilteredExpenses(filtered);
   };
 
-  const handleAddExpense = () => {
-    const expense: Expense = {
-      id: generateId(),
-      date: new Date(),
-      category: newExpense.category,
-      subcategory: newExpense.subcategory,
-      amount: newExpense.amount,
-      description: newExpense.description,
-      vendor: newExpense.vendor,
-      paymentMethod: newExpense.paymentMethod,
-      status: 'pending',
-      isRecurring: newExpense.isRecurring,
-      recurringFrequency: newExpense.isRecurring ? newExpense.recurringFrequency : undefined
-    };
+  const handleAddExpense = async () => {
+    try {
+      const expense: Expense = {
+        id: generateId(),
+        date: new Date(),
+        category: newExpense.category,
+        subcategory: newExpense.subcategory,
+        amount: newExpense.amount,
+        description: newExpense.description,
+        vendor: newExpense.vendor,
+        paymentMethod: newExpense.paymentMethod,
+        status: 'pending',
+        isRecurring: newExpense.isRecurring,
+        recurringFrequency: newExpense.isRecurring ? newExpense.recurringFrequency : undefined
+      };
 
-    storage.addItem('expenses', expense);
-    loadExpenses();
-    setShowAddModal(false);
-    resetForm();
+      await storage.addItem('expenses', expense);
+      await loadExpenses();
+      setShowAddModal(false);
+      resetForm();
+    } catch (err) {
+      console.error('Error adding expense:', err);
+      setError(err instanceof Error ? err.message : 'Failed to add expense');
+    }
   };
 
   const resetForm = () => {
@@ -113,21 +144,36 @@ const ExpenseManagement: React.FC = () => {
     });
   };
 
-  const handleDeleteExpense = (id: string) => {
+  const handleDeleteExpense = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this expense?')) {
-      storage.deleteItem('expenses', id);
-      loadExpenses();
+      try {
+        await storage.deleteItem('expenses', id);
+        await loadExpenses();
+      } catch (err) {
+        console.error('Error deleting expense:', err);
+        setError(err instanceof Error ? err.message : 'Failed to delete expense');
+      }
     }
   };
 
-  const handleApproveExpense = (id: string) => {
-    storage.updateItem('expenses', id, { status: 'approved', approvedBy: 'Admin' });
-    loadExpenses();
+  const handleApproveExpense = async (id: string) => {
+    try {
+      await storage.updateItem('expenses', id, { status: 'approved', approvedBy: 'Admin' });
+      await loadExpenses();
+    } catch (err) {
+      console.error('Error approving expense:', err);
+      setError(err instanceof Error ? err.message : 'Failed to approve expense');
+    }
   };
 
-  const handleRejectExpense = (id: string) => {
-    storage.updateItem('expenses', id, { status: 'rejected', approvedBy: 'Admin' });
-    loadExpenses();
+  const handleRejectExpense = async (id: string) => {
+    try {
+      await storage.updateItem('expenses', id, { status: 'rejected', approvedBy: 'Admin' });
+      await loadExpenses();
+    } catch (err) {
+      console.error('Error rejecting expense:', err);
+      setError(err instanceof Error ? err.message : 'Failed to reject expense');
+    }
   };
 
   const exportToCSV = () => {
@@ -169,6 +215,17 @@ const ExpenseManagement: React.FC = () => {
     return filteredExpenses.filter(expense => expense.status === 'pending').reduce((total, expense) => total + expense.amount, 0);
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-6 max-w-none">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <span className="ml-3 text-gray-600">Loading expenses...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-none">
       {/* Header */}
@@ -177,14 +234,37 @@ const ExpenseManagement: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-900">Expense Management</h2>
           <p className="text-gray-600">Track and manage all business expenses</p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Add Expense</span>
-        </button>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Add Expense</span>
+          </button>
+        </div>
       </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-700">{error}</p>
+          <button
+            onClick={() => setError(null)}
+            className="mt-2 text-red-600 hover:text-red-800 text-sm underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

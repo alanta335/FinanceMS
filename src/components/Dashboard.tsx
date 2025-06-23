@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, ShoppingBag, Users, AlertTriangle } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, ShoppingBag, Users, AlertTriangle, RefreshCw } from 'lucide-react';
 import { storage } from '../utils/storage';
 import { calculateRevenue, calculateExpenses, calculateProfit, calculateProfitMargin, formatCurrency, getTopSellingProducts, getMonthlyTrends } from '../utils/calculations';
 import { Sale, Expense, FinancialSummary } from '../types';
@@ -17,13 +17,14 @@ const Dashboard: React.FC = () => {
   const [sales, setSales] = useState<Sale[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
     
-    // Refresh data every 30 seconds
-    const interval = setInterval(loadData, 30000);
+    // Refresh data every 5 minutes
+    const interval = setInterval(loadData, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -62,6 +63,20 @@ const Dashboard: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true);
+      setError(null);
+      await storage.refreshData();
+      await loadData();
+    } catch (err) {
+      console.error('Error refreshing data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to refresh data');
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -115,12 +130,22 @@ const Dashboard: React.FC = () => {
             <h3 className="text-red-800 font-medium">Error Loading Dashboard</h3>
           </div>
           <p className="text-red-700 mt-2">{error}</p>
-          <button
-            onClick={loadData}
-            className="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-          >
-            Retry
-          </button>
+          <div className="flex space-x-3 mt-4">
+            <button
+              onClick={loadData}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Retry
+            </button>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -134,8 +159,19 @@ const Dashboard: React.FC = () => {
           <h2 className="text-3xl font-bold text-gray-900">Dashboard</h2>
           <p className="text-gray-600 mt-1">Welcome back! Here's your business overview.</p>
         </div>
-        <div className="flex items-center space-x-2 text-sm text-gray-500">
-          <span>Last updated: {new Date().toLocaleTimeString()}</span>
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+            title="Refresh data"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <span className="text-sm">Refresh</span>
+          </button>
+          <div className="flex items-center space-x-2 text-sm text-gray-500">
+            <span>Last updated: {new Date().toLocaleTimeString()}</span>
+          </div>
         </div>
       </div>
 

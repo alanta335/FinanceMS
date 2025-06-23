@@ -10,56 +10,34 @@ interface StorageData {
 
 class DataStorage {
   private cache: Partial<StorageData> = {};
-  private isOnline = navigator.onLine;
+  private cacheTimestamps: Partial<Record<keyof StorageData, number>> = {};
+  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-  constructor() {
-    // Listen for online/offline events
-    window.addEventListener('online', () => {
-      this.isOnline = true;
-      this.syncOfflineData();
-    });
-    
-    window.addEventListener('offline', () => {
-      this.isOnline = false;
-    });
+  private isCacheValid(key: keyof StorageData): boolean {
+    const timestamp = this.cacheTimestamps[key];
+    if (!timestamp) return false;
+    return Date.now() - timestamp < this.CACHE_DURATION;
   }
 
-  private getStorageKey(key: keyof StorageData): string {
-    return `fms_${key}`;
+  private setCacheData<T>(key: keyof StorageData, data: T[]): void {
+    this.cache[key] = data;
+    this.cacheTimestamps[key] = Date.now();
   }
 
-  private getLocalData<T>(key: keyof StorageData): T[] {
-    try {
-      const data = localStorage.getItem(this.getStorageKey(key));
-      return data ? JSON.parse(data) : [];
-    } catch (error) {
-      console.error(`Error loading ${key} from localStorage:`, error);
-      return [];
+  private clearCache(key?: keyof StorageData): void {
+    if (key) {
+      delete this.cache[key];
+      delete this.cacheTimestamps[key];
+    } else {
+      this.cache = {};
+      this.cacheTimestamps = {};
     }
-  }
-
-  private setLocalData<T>(key: keyof StorageData, data: T[]): void {
-    try {
-      localStorage.setItem(this.getStorageKey(key), JSON.stringify(data));
-    } catch (error) {
-      console.error(`Error saving ${key} to localStorage:`, error);
-    }
-  }
-
-  private async syncOfflineData(): Promise<void> {
-    // This would handle syncing offline changes when coming back online
-    // For now, we'll just refresh the cache
-    this.cache = {};
   }
 
   async getData<T>(key: keyof StorageData): Promise<T[]> {
     try {
-      if (!this.isOnline) {
-        return this.getLocalData<T>(key);
-      }
-
       // Check cache first
-      if (this.cache[key]) {
+      if (this.isCacheValid(key) && this.cache[key]) {
         return this.cache[key] as T[];
       }
 
@@ -79,71 +57,28 @@ class DataStorage {
           data = await supabaseStorage.getProducts() as T[];
           break;
         default:
-          data = [];
+          throw new Error(`Unknown data type: ${key}`);
       }
 
       // Cache the data
-      this.cache[key] = data;
-      
-      // Also save to localStorage as backup
-      this.setLocalData(key, data);
+      this.setCacheData(key, data);
       
       return data;
     } catch (error) {
       console.error(`Error fetching ${key} from Supabase:`, error);
       
-      // Fallback to localStorage
-      const localData = this.getLocalData<T>(key);
-      
-      // Show user-friendly error message
-      if (localData.length === 0) {
-        throw new Error(`Unable to load ${key}. Please check your internet connection and try again.`);
+      // Return cached data if available, even if expired
+      if (this.cache[key]) {
+        console.warn(`Using stale cache for ${key} due to error`);
+        return this.cache[key] as T[];
       }
       
-      return localData;
-    }
-  }
-
-  // Legacy method for backward compatibility
-  getData<T>(key: keyof StorageData): T[] {
-    // For synchronous calls, return cached data or empty array
-    if (this.cache[key]) {
-      return this.cache[key] as T[];
-    }
-    
-    return this.getLocalData<T>(key);
-  }
-
-  async setData<T>(key: keyof StorageData, data: T[]): Promise<void> {
-    try {
-      // Update cache
-      this.cache[key] = data;
-      
-      // Save to localStorage
-      this.setLocalData(key, data);
-      
-      if (!this.isOnline) {
-        return;
-      }
-
-      // Note: This method is mainly for bulk operations
-      // Individual operations should use addItem, updateItem, deleteItem
-    } catch (error) {
-      console.error(`Error setting ${key}:`, error);
-      throw new Error(`Failed to save ${key}. Please try again.`);
+      throw new Error(`Unable to load ${key}. Please check your internet connection and try again.`);
     }
   }
 
   async addItem<T extends { id: string }>(key: keyof StorageData, item: T): Promise<void> {
     try {
-      if (!this.isOnline) {
-        // Add to localStorage for offline support
-        const items = this.getLocalData<T>(key);
-        items.push(item);
-        this.setLocalData(key, items);
-        return;
-      }
-
       switch (key) {
         case 'sales':
           await supabaseStorage.addSale(item as Sale);
@@ -157,17 +92,14 @@ class DataStorage {
         case 'products':
           await supabaseStorage.addProduct(item as Product);
           break;
+        default:
+          throw new Error(`Unknown data type: ${key}`);
       }
 
       // Update cache
       if (this.cache[key]) {
         (this.cache[key] as T[]).push(item);
       }
-      
-      // Update localStorage
-      const items = this.getLocalData<T>(key);
-      items.push(item);
-      this.setLocalData(key, items);
       
     } catch (error) {
       console.error(`Error adding ${key} item:`, error);
@@ -177,17 +109,6 @@ class DataStorage {
 
   async updateItem<T extends { id: string }>(key: keyof StorageData, id: string, updates: Partial<T>): Promise<void> {
     try {
-      if (!this.isOnline) {
-        // Update in localStorage for offline support
-        const items = this.getLocalData<T>(key);
-        const index = items.findIndex(item => item.id === id);
-        if (index !== -1) {
-          items[index] = { ...items[index], ...updates };
-          this.setLocalData(key, items);
-        }
-        return;
-      }
-
       switch (key) {
         case 'sales':
           await supabaseStorage.updateSale(id, updates as Partial<Sale>);
@@ -201,6 +122,8 @@ class DataStorage {
         case 'products':
           await supabaseStorage.updateProduct(id, updates as Partial<Product>);
           break;
+        default:
+          throw new Error(`Unknown data type: ${key}`);
       }
 
       // Update cache
@@ -212,14 +135,6 @@ class DataStorage {
         }
       }
       
-      // Update localStorage
-      const items = this.getLocalData<T>(key);
-      const index = items.findIndex(item => item.id === id);
-      if (index !== -1) {
-        items[index] = { ...items[index], ...updates };
-        this.setLocalData(key, items);
-      }
-      
     } catch (error) {
       console.error(`Error updating ${key} item:`, error);
       throw new Error(`Failed to update ${key.slice(0, -1)}. Please try again.`);
@@ -228,14 +143,6 @@ class DataStorage {
 
   async deleteItem(key: keyof StorageData, id: string): Promise<void> {
     try {
-      if (!this.isOnline) {
-        // Delete from localStorage for offline support
-        const items = this.getLocalData(key);
-        const filtered = items.filter(item => item.id !== id);
-        this.setLocalData(key, filtered);
-        return;
-      }
-
       switch (key) {
         case 'sales':
           await supabaseStorage.deleteSale(id);
@@ -249,6 +156,8 @@ class DataStorage {
         case 'products':
           await supabaseStorage.deleteProduct(id);
           break;
+        default:
+          throw new Error(`Unknown data type: ${key}`);
       }
 
       // Update cache
@@ -256,36 +165,72 @@ class DataStorage {
         this.cache[key] = (this.cache[key] as any[]).filter(item => item.id !== id);
       }
       
-      // Update localStorage
-      const items = this.getLocalData(key);
-      const filtered = items.filter(item => item.id !== id);
-      this.setLocalData(key, filtered);
-      
     } catch (error) {
       console.error(`Error deleting ${key} item:`, error);
       throw new Error(`Failed to delete ${key.slice(0, -1)}. Please try again.`);
     }
   }
 
+  async refreshData(key?: keyof StorageData): Promise<void> {
+    try {
+      if (key) {
+        this.clearCache(key);
+        await this.getData(key);
+      } else {
+        this.clearCache();
+        // Refresh all data types
+        await Promise.all([
+          this.getData('sales'),
+          this.getData('expenses'),
+          this.getData('employees'),
+          this.getData('products')
+        ]);
+      }
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      throw new Error('Failed to refresh data. Please try again.');
+    }
+  }
+
   async clearAll(): Promise<void> {
     try {
-      if (this.isOnline) {
-        await supabaseStorage.clearAll();
-      }
-      
-      // Clear cache
-      this.cache = {};
-      
-      // Clear localStorage
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('fms_')) {
-          localStorage.removeItem(key);
-        }
-      });
+      await supabaseStorage.clearAll();
+      this.clearCache();
     } catch (error) {
       console.error('Error clearing all data:', error);
       throw new Error('Failed to clear all data. Please try again.');
     }
+  }
+
+  // Utility method to check if data is cached
+  isCached(key: keyof StorageData): boolean {
+    return this.isCacheValid(key) && !!this.cache[key];
+  }
+
+  // Method to get cache status for debugging
+  getCacheStatus(): Record<keyof StorageData, { cached: boolean; timestamp?: number; count?: number }> {
+    return {
+      sales: {
+        cached: this.isCached('sales'),
+        timestamp: this.cacheTimestamps.sales,
+        count: this.cache.sales?.length
+      },
+      expenses: {
+        cached: this.isCached('expenses'),
+        timestamp: this.cacheTimestamps.expenses,
+        count: this.cache.expenses?.length
+      },
+      employees: {
+        cached: this.isCached('employees'),
+        timestamp: this.cacheTimestamps.employees,
+        count: this.cache.employees?.length
+      },
+      products: {
+        cached: this.isCached('products'),
+        timestamp: this.cacheTimestamps.products,
+        count: this.cache.products?.length
+      }
+    };
   }
 }
 

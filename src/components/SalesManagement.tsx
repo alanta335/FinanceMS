@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Filter, Download, Edit2, Trash2, Eye } from 'lucide-react';
+import { Plus, Search, Filter, Download, Edit2, Trash2, Eye, RefreshCw } from 'lucide-react';
 import { storage } from '../utils/storage';
 import { Sale, Product } from '../types';
 import { formatCurrency, formatDate, generateId } from '../utils/calculations';
@@ -10,6 +10,9 @@ const SalesManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     paymentMethod: '',
     dateRange: '',
@@ -43,9 +46,32 @@ const SalesManagement: React.FC = () => {
     filterSales();
   }, [sales, searchTerm, filters]);
 
-  const loadSales = () => {
-    const salesData = storage.getData<Sale>('sales');
-    setSales(salesData);
+  const loadSales = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const salesData = await storage.getData<Sale>('sales');
+      setSales(salesData);
+    } catch (err) {
+      console.error('Error loading sales:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load sales data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true);
+      setError(null);
+      await storage.refreshData('sales');
+      await loadSales();
+    } catch (err) {
+      console.error('Error refreshing sales:', err);
+      setError(err instanceof Error ? err.message : 'Failed to refresh sales data');
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const filterSales = () => {
@@ -71,34 +97,39 @@ const SalesManagement: React.FC = () => {
     setFilteredSales(filtered);
   };
 
-  const handleAddSale = () => {
-    const totalAmount = newSale.quantity * newSale.unitPrice;
-    const commission = totalAmount * 0.05; // 5% commission
+  const handleAddSale = async () => {
+    try {
+      const totalAmount = newSale.quantity * newSale.unitPrice;
+      const commission = totalAmount * 0.05; // 5% commission
 
-    const sale: Sale = {
-      id: generateId(),
-      date: new Date(),
-      product: {
+      const sale: Sale = {
         id: generateId(),
-        ...newSale.product
-      },
-      quantity: newSale.quantity,
-      unitPrice: newSale.unitPrice,
-      totalAmount,
-      paymentMethod: newSale.paymentMethod,
-      customerName: newSale.customerName,
-      customerPhone: newSale.customerPhone,
-      salesPerson: newSale.salesPerson,
-      commission,
-      isReturned: false,
-      warrantyStartDate: new Date(),
-      notes: newSale.notes
-    };
+        date: new Date(),
+        product: {
+          id: generateId(),
+          ...newSale.product
+        },
+        quantity: newSale.quantity,
+        unitPrice: newSale.unitPrice,
+        totalAmount,
+        paymentMethod: newSale.paymentMethod,
+        customerName: newSale.customerName,
+        customerPhone: newSale.customerPhone,
+        salesPerson: newSale.salesPerson,
+        commission,
+        isReturned: false,
+        warrantyStartDate: new Date(),
+        notes: newSale.notes
+      };
 
-    storage.addItem('sales', sale);
-    loadSales();
-    setShowAddModal(false);
-    resetForm();
+      await storage.addItem('sales', sale);
+      await loadSales();
+      setShowAddModal(false);
+      resetForm();
+    } catch (err) {
+      console.error('Error adding sale:', err);
+      setError(err instanceof Error ? err.message : 'Failed to add sale');
+    }
   };
 
   const resetForm = () => {
@@ -122,10 +153,15 @@ const SalesManagement: React.FC = () => {
     });
   };
 
-  const handleDeleteSale = (id: string) => {
+  const handleDeleteSale = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this sale?')) {
-      storage.deleteItem('sales', id);
-      loadSales();
+      try {
+        await storage.deleteItem('sales', id);
+        await loadSales();
+      } catch (err) {
+        console.error('Error deleting sale:', err);
+        setError(err instanceof Error ? err.message : 'Failed to delete sale');
+      }
     }
   };
 
@@ -152,6 +188,17 @@ const SalesManagement: React.FC = () => {
     window.URL.revokeObjectURL(url);
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-6 max-w-none">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <span className="ml-3 text-gray-600">Loading sales...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-none">
       {/* Header */}
@@ -160,14 +207,37 @@ const SalesManagement: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-900">Sales Management</h2>
           <p className="text-gray-600">Track and manage all sales transactions</p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Add Sale</span>
-        </button>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Add Sale</span>
+          </button>
+        </div>
       </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-700">{error}</p>
+          <button
+            onClick={() => setError(null)}
+            className="mt-2 text-red-600 hover:text-red-800 text-sm underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Filters and Search */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
