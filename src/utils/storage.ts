@@ -42,7 +42,7 @@ class DataStorage {
       }
 
       let data: T[] = [];
-      
+
       switch (key) {
         case 'sales':
           data = await supabaseStorage.getSales() as T[];
@@ -62,17 +62,17 @@ class DataStorage {
 
       // Cache the data
       this.setCacheData(key, data);
-      
+
       return data;
     } catch (error) {
       console.error(`Error fetching ${key} from Supabase:`, error);
-      
+
       // Return cached data if available, even if expired
       if (this.cache[key]) {
         console.warn(`Using stale cache for ${key} due to error`);
         return this.cache[key] as T[];
       }
-      
+
       throw new Error(`Unable to load ${key}. Please check your internet connection and try again.`);
     }
   }
@@ -100,7 +100,7 @@ class DataStorage {
       if (this.cache[key]) {
         (this.cache[key] as T[]).push(item);
       }
-      
+
     } catch (error) {
       console.error(`Error adding ${key} item:`, error);
       throw new Error(`Failed to add ${key.slice(0, -1)}. Please try again.`);
@@ -134,7 +134,7 @@ class DataStorage {
           items[index] = { ...items[index], ...updates };
         }
       }
-      
+
     } catch (error) {
       console.error(`Error updating ${key} item:`, error);
       throw new Error(`Failed to update ${key.slice(0, -1)}. Please try again.`);
@@ -164,7 +164,7 @@ class DataStorage {
       if (this.cache[key]) {
         this.cache[key] = (this.cache[key] as any[]).filter(item => item.id !== id);
       }
-      
+
     } catch (error) {
       console.error(`Error deleting ${key} item:`, error);
       throw new Error(`Failed to delete ${key.slice(0, -1)}. Please try again.`);
