@@ -359,16 +359,85 @@ const Reports: React.FC = () => {
         return null;
     }
 
-    // This would require loading previous period data
-    // For now, return mock comparison data
-    return {
-      revenueChange: 12.5,
-      expenseChange: 5.2,
-      profitChange: 18.3
-    };
+    // Load all sales and expenses from storage (sync, since reportData is already loaded)
+    // This is safe because reportData is only set after all data is loaded
+    const allSales = reportData.sales.concat(); // Not filtered, so we need to reload
+    const allExpenses = reportData.expenses.concat();
+    // But we need to actually reload all data, not just filtered
+    // So we need to use the same logic as generateReport, but for previous period
+    // We'll use a synchronous approach for this function
+    // But since storage.getData is async, we need to make getComparisonData async and handle it in useEffect
+    return null; // We'll move this logic to useEffect below
   };
 
-  const comparisonData = getComparisonData();
+  // --- New: Calculate comparison data in useEffect ---
+  const [comparisonData, setComparisonData] = useState<{
+    revenueChange: number;
+    expenseChange: number;
+    profitChange: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const calcComparison = async () => {
+      if (!reportData) {
+        setComparisonData(null);
+        return;
+      }
+      let prevStart: Date, prevEnd: Date;
+      const { start, end } = getDateRange();
+      switch (reportType) {
+        case 'daily':
+          prevStart = new Date(start);
+          prevStart.setDate(prevStart.getDate() - 1);
+          prevEnd = new Date(prevStart);
+          prevEnd.setHours(23, 59, 59, 999);
+          break;
+        case 'monthly':
+          prevStart = new Date(start);
+          prevStart.setMonth(prevStart.getMonth() - 1);
+          prevEnd = new Date(prevStart.getFullYear(), prevStart.getMonth() + 1, 0);
+          prevEnd.setHours(23, 59, 59, 999);
+          break;
+        case 'yearly':
+          prevStart = new Date(start);
+          prevStart.setFullYear(prevStart.getFullYear() - 1);
+          prevEnd = new Date(prevStart.getFullYear(), 11, 31);
+          prevEnd.setHours(23, 59, 59, 999);
+          break;
+        default:
+          setComparisonData(null);
+          return;
+      }
+      // Load all sales and expenses for previous period
+      const [allSales, allExpenses] = await Promise.all([
+        storage.getData<Sale>('sales'),
+        storage.getData<Expense>('expenses')
+      ]);
+      const prevSales = allSales.filter(sale => {
+        const saleDate = new Date(sale.date);
+        return saleDate >= prevStart && saleDate <= prevEnd;
+      });
+      const prevExpenses = allExpenses.filter(expense => {
+        const expenseDate = new Date(expense.date);
+        return expenseDate >= prevStart && expenseDate <= prevEnd;
+      });
+      const prevRevenue = calculateRevenue(prevSales);
+      const prevTotalExpenses = calculateExpenses(prevExpenses);
+      const prevProfit = calculateProfit(prevRevenue, prevTotalExpenses);
+      // Calculate changes
+      const getChange = (current: number, prev: number) => {
+        if (prev === 0) return 0;
+        return ((current - prev) / Math.abs(prev)) * 100;
+      };
+      setComparisonData({
+        revenueChange: getChange(reportData.revenue, prevRevenue),
+        expenseChange: getChange(reportData.totalExpenses, prevTotalExpenses),
+        profitChange: getChange(reportData.profit, prevProfit)
+      });
+    };
+    calcComparison();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportData, reportType, selectedDate, selectedMonth, selectedYear]);
 
   return (
     <div className="space-y-6 max-w-none">

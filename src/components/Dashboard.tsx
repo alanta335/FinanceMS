@@ -22,34 +22,41 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     loadData();
-    
     // Refresh data every 5 minutes
     const interval = setInterval(loadData, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
+  // Helper to calculate previous month stats
+  const getPrevMonthStats = (salesData: Sale[], expensesData: Expense[]) => {
+    const now = new Date();
+    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const startOfPrevMonth = new Date(prevMonth.getFullYear(), prevMonth.getMonth(), 1);
+    const endOfPrevMonth = new Date(prevMonth.getFullYear(), prevMonth.getMonth() + 1, 0);
+    const prevRevenue = calculateRevenue(salesData, { start: startOfPrevMonth, end: endOfPrevMonth });
+    const prevExpenses = calculateExpenses(expensesData, { start: startOfPrevMonth, end: endOfPrevMonth });
+    const prevProfit = calculateProfit(prevRevenue, prevExpenses);
+    const prevProfitMargin = calculateProfitMargin(prevProfit, prevRevenue);
+    return { prevRevenue, prevExpenses, prevProfit, prevProfitMargin };
+  };
+
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
-      
       const [salesData, expensesData] = await Promise.all([
         storage.getData<Sale>('sales'),
         storage.getData<Expense>('expenses')
       ]);
-      
       setSales(salesData);
       setExpenses(expensesData);
-
       const currentMonth = new Date();
       const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
       const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
-      
       const monthlyRevenue = calculateRevenue(salesData, { start: startOfMonth, end: endOfMonth });
       const monthlyExpenses = calculateExpenses(expensesData, { start: startOfMonth, end: endOfMonth });
       const monthlyProfit = calculateProfit(monthlyRevenue, monthlyExpenses);
       const profitMargin = calculateProfitMargin(monthlyProfit, monthlyRevenue);
-      
       setSummary({
         totalRevenue: monthlyRevenue,
         totalExpenses: monthlyExpenses,
@@ -57,6 +64,14 @@ const Dashboard: React.FC = () => {
         profitMargin,
         topSellingProducts: getTopSellingProducts(salesData),
         monthlyTrends: getMonthlyTrends(salesData, expensesData)
+      });
+      // Calculate previous month stats for metric changes
+      const { prevRevenue, prevExpenses, prevProfit, prevProfitMargin } = getPrevMonthStats(salesData, expensesData);
+      setMetricChanges({
+        revenue: getChange(monthlyRevenue, prevRevenue),
+        expenses: getChange(monthlyExpenses, prevExpenses),
+        profit: getChange(monthlyProfit, prevProfit),
+        margin: getChange(profitMargin, prevProfitMargin, true)
       });
     } catch (err) {
       console.error('Error loading dashboard data:', err);
@@ -79,6 +94,29 @@ const Dashboard: React.FC = () => {
       setRefreshing(false);
     }
   };
+
+  // Helper to calculate change and type
+  const getChange = (current: number, prev: number, isPercent = false) => {
+    if (prev === 0) {
+      return { value: '+0%', type: 'neutral' };
+    }
+    const diff = current - prev;
+    const percent = (diff / Math.abs(prev)) * 100;
+    const rounded = percent.toFixed(1);
+    const sign = percent > 0 ? '+' : '';
+    return {
+      value: `${sign}${rounded}${isPercent ? '' : '%'}${isPercent ? '%' : ''}`,
+      type: percent > 0 ? 'positive' : percent < 0 ? 'negative' : 'neutral'
+    };
+  };
+
+  // State for metric changes
+  const [metricChanges, setMetricChanges] = useState({
+    revenue: { value: '+0%', type: 'neutral' },
+    expenses: { value: '+0%', type: 'neutral' },
+    profit: { value: '+0%', type: 'neutral' },
+    margin: { value: '+0%', type: 'neutral' }
+  });
 
   const MetricCard: React.FC<{
     title: string;
@@ -180,32 +218,32 @@ const Dashboard: React.FC = () => {
         <MetricCard
           title="Total Revenue"
           value={formatCurrency(summary.totalRevenue)}
-          change="+12.5%"
-          changeType="positive"
+          change={metricChanges.revenue.value}
+          changeType={metricChanges.revenue.type as any}
           icon={<TrendingUp className="h-6 w-6 text-white" />}
           color="bg-green-500"
         />
         <MetricCard
           title="Total Expenses"
           value={formatCurrency(summary.totalExpenses)}
-          change="+5.2%"
-          changeType="negative"
+          change={metricChanges.expenses.value}
+          changeType={metricChanges.expenses.type as any}
           icon={<TrendingDown className="h-6 w-6 text-white" />}
           color="bg-red-500"
         />
         <MetricCard
           title="Net Profit"
           value={formatCurrency(summary.netProfit)}
-          change="+18.3%"
-          changeType="positive"
+          change={metricChanges.profit.value}
+          changeType={metricChanges.profit.type as any}
           icon={<DollarSign className="h-6 w-6 text-white" />}
           color="bg-blue-500"
         />
         <MetricCard
           title="Profit Margin"
           value={`${summary.profitMargin.toFixed(1)}%`}
-          change="+2.1%"
-          changeType="positive"
+          change={metricChanges.margin.value}
+          changeType={metricChanges.margin.type as any}
           icon={<ShoppingBag className="h-6 w-6 text-white" />}
           color="bg-purple-500"
         />
