@@ -6,8 +6,8 @@ interface EmployeeTableProps {
   employees: Employee[];
   onView: (e: Employee) => void;
   onEdit: (e: Employee) => void;
-  onToggle: (e: Employee) => void;
-  onDelete: (e: Employee) => void;
+  onToggle: (id: string, status: boolean) => void;
+  onDelete: (id: string) => void;
 }
 
 const EmployeeTable: React.FC<EmployeeTableProps> = ({

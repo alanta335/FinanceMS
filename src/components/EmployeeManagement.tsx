@@ -1,15 +1,4 @@
 import React from "react";
-import {
-  RefreshCw,
-  Plus,
-  Users,
-  Award,
-  DollarSign,
-  Search,
-  Download,
-} from "lucide-react";
-import EmployeeRow from "./EmployeeManagement/EmployeeRow";
-import EmployeeForm from "./EmployeeManagement/EmployeeForm";
 import { useEmployeeManagement } from "./EmployeeManagement/useEmployeeManagement";
 import Header from "./EmployeeManagement/ui/Header";
 import ErrorDisplay from "./EmployeeManagement/ui/ErrorDisplay";
@@ -110,7 +99,23 @@ const EmployeeManagement: React.FC = () => {
         showAddModal={showAddModal}
         showEditModal={showEditModal}
         selectedEmployee={selectedEmployee}
-        newEmployee={newEmployee}
+        newEmployee={{
+          id: '',
+          name: newEmployee.name,
+          position: newEmployee.position,
+          department: newEmployee.department,
+          baseSalary: newEmployee.baseSalary,
+          commissionRate: newEmployee.commissionRate,
+          joinDate: new Date(),
+          isActive: true,
+          phone: newEmployee.phone,
+          email: newEmployee.email,
+          address: newEmployee.address,
+          emergencyContact: newEmployee.emergencyContact,
+          bankAccount: newEmployee.bankAccount,
+          panNumber: newEmployee.panNumber,
+          aadharNumber: newEmployee.aadharNumber,
+        }}
         setNewEmployee={setNewEmployee}
         positions={positions}
         departments={departments}
