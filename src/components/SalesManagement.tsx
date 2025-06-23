@@ -131,6 +131,7 @@ const SalesManagement: React.FC = () => {
       console.error('Error adding sale:', err);
       setError(err instanceof Error ? err.message : 'Failed to add sale');
     }
+    await handleRefresh();
   };
 
   const resetForm = () => {

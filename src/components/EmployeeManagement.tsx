@@ -149,6 +149,7 @@ const EmployeeManagement: React.FC = () => {
       console.error('Error adding employee:', err);
       setError(err instanceof Error ? err.message : 'Failed to add employee');
     }
+    await handleRefresh();
   };
 
   const handleUpdateEmployee = async () => {
@@ -180,6 +181,7 @@ const EmployeeManagement: React.FC = () => {
         setError(err instanceof Error ? err.message : 'Failed to update employee');
       }
     }
+    await handleRefresh();
   };
 
   const resetForm = () => {
@@ -219,6 +221,7 @@ const EmployeeManagement: React.FC = () => {
       console.error('Error toggling employee status:', err);
       setError(err instanceof Error ? err.message : 'Failed to update employee status');
     }
+    await handleRefresh();
   };
 
   const handleEditEmployee = (employee: Employee) => {

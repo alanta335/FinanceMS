@@ -129,6 +129,7 @@ const ExpenseManagement: React.FC = () => {
       console.error('Error adding expense:', err);
       setError(err instanceof Error ? err.message : 'Failed to add expense');
     }
+    await handleRefresh();
   };
 
   const resetForm = () => {
@@ -164,6 +165,7 @@ const ExpenseManagement: React.FC = () => {
       console.error('Error approving expense:', err);
       setError(err instanceof Error ? err.message : 'Failed to approve expense');
     }
+    await handleRefresh();
   };
 
   const handleRejectExpense = async (id: string) => {
@@ -174,6 +176,7 @@ const ExpenseManagement: React.FC = () => {
       console.error('Error rejecting expense:', err);
       setError(err instanceof Error ? err.message : 'Failed to reject expense');
     }
+    await handleRefresh();
   };
 
   const exportToCSV = () => {
@@ -244,7 +247,9 @@ const ExpenseManagement: React.FC = () => {
             <span>Refresh</span>
           </button>
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={() => {
+              setShowAddModal(true);
+            }}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
           >
             <Plus className="h-4 w-4" />
