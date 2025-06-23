@@ -1,0 +1,1 @@
+Migration complete. All EmployeeManagement-related files are now in the EmployeeManagement/ folder. Remove the old EmployeeForm.tsx, EmployeeRow.tsx, and employeeUtils.ts from src/components. Update all imports to use the new folder structure.

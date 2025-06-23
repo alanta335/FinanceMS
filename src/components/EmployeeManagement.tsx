@@ -1,277 +1,52 @@
-import React, { useState, useEffect } from 'react';
-import { RefreshCw, Plus, Users, Award, DollarSign, Search, Download } from 'lucide-react';
-import { storage } from '../utils/storage';
-import { Employee } from '../types';
-import EmployeeRow from './EmployeeRow';
-import EmployeeForm from './EmployeeForm';
-import { formatDate, formatCurrency, generateId, initialEmployee } from './employeeUtils';
+import React from "react";
+import {
+  RefreshCw,
+  Plus,
+  Users,
+  Award,
+  DollarSign,
+  Search,
+  Download,
+} from "lucide-react";
+import EmployeeRow from "./EmployeeManagement/EmployeeRow";
+import EmployeeForm from "./EmployeeManagement/EmployeeForm";
+import { useEmployeeManagement } from "./EmployeeManagement/useEmployeeManagement";
 
 const EmployeeManagement: React.FC = () => {
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState({
-    position: '',
-    status: '',
-    department: ''
-  });
-
-  const [newEmployee, setNewEmployee] = useState({
-    name: '',
-    position: '',
-    department: '',
-    baseSalary: 0,
-    commissionRate: 5,
-    phone: '',
-    email: '',
-    address: '',
-    emergencyContact: '',
-    bankAccount: '',
-    panNumber: '',
-    aadharNumber: ''
-  });
-
-  const positions = [
-    'Sales Executive',
-    'Senior Sales Executive',
-    'Sales Manager',
-    'Store Manager',
-    'Cashier',
-    'Technical Support',
-    'Customer Service',
-    'Inventory Manager',
-    'Assistant Manager'
-  ];
-
-  const departments = [
-    'Sales',
-    'Management',
-    'Technical',
-    'Customer Service',
-    'Operations',
-    'Finance'
-  ];
-
-  useEffect(() => {
-    loadEmployees();
-  }, []);
-
-  useEffect(() => {
-    filterEmployees();
-  }, [employees, searchTerm, filters]);
-
-  const loadEmployees = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const employeesData = await storage.getData<Employee>('employees');
-      setEmployees(employeesData);
-    } catch (err) {
-      console.error('Error loading employees:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load employees data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRefresh = async () => {
-    try {
-      setRefreshing(true);
-      setError(null);
-      await storage.refreshData('employees');
-      await loadEmployees();
-    } catch (err) {
-      console.error('Error refreshing employees:', err);
-      setError(err instanceof Error ? err.message : 'Failed to refresh employees data');
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  const filterEmployees = () => {
-    let filtered = [...employees];
-
-    if (searchTerm) {
-      filtered = filtered.filter(employee =>
-        employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        employee.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        employee.phone.includes(searchTerm) ||
-        employee.email.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    if (filters.position) {
-      filtered = filtered.filter(employee => employee.position === filters.position);
-    }
-
-    if (filters.status) {
-      filtered = filtered.filter(employee => 
-        filters.status === 'active' ? employee.isActive : !employee.isActive
-      );
-    }
-
-    if (filters.department) {
-      filtered = filtered.filter(employee => employee.department === filters.department);
-    }
-
-    setFilteredEmployees(filtered);
-  };
-
-  const handleAddEmployee = async () => {
-    try {
-      const employee: Employee = {
-        id: generateId(),
-        name: newEmployee.name,
-        position: newEmployee.position,
-        department: newEmployee.department,
-        baseSalary: newEmployee.baseSalary,
-        commissionRate: newEmployee.commissionRate,
-        joinDate: new Date(),
-        isActive: true,
-        phone: newEmployee.phone,
-        email: newEmployee.email,
-        address: newEmployee.address,
-        emergencyContact: newEmployee.emergencyContact,
-        bankAccount: newEmployee.bankAccount,
-        panNumber: newEmployee.panNumber,
-        aadharNumber: newEmployee.aadharNumber
-      };
-
-      await storage.addItem('employees', employee);
-      await loadEmployees();
-      setShowAddModal(false);
-      resetForm();
-    } catch (err) {
-      console.error('Error adding employee:', err);
-      setError(err instanceof Error ? err.message : 'Failed to add employee');
-    }
-    await handleRefresh();
-  };
-
-  const handleUpdateEmployee = async () => {
-    if (selectedEmployee) {
-      try {
-        const updatedEmployee = {
-          ...selectedEmployee,
-          name: newEmployee.name,
-          position: newEmployee.position,
-          department: newEmployee.department,
-          baseSalary: newEmployee.baseSalary,
-          commissionRate: newEmployee.commissionRate,
-          phone: newEmployee.phone,
-          email: newEmployee.email,
-          address: newEmployee.address,
-          emergencyContact: newEmployee.emergencyContact,
-          bankAccount: newEmployee.bankAccount,
-          panNumber: newEmployee.panNumber,
-          aadharNumber: newEmployee.aadharNumber
-        };
-
-        await storage.updateItem('employees', selectedEmployee.id, updatedEmployee);
-        await loadEmployees();
-        setShowEditModal(false);
-        setSelectedEmployee(null);
-        resetForm();
-      } catch (err) {
-        console.error('Error updating employee:', err);
-        setError(err instanceof Error ? err.message : 'Failed to update employee');
-      }
-    }
-    await handleRefresh();
-  };
-
-  const resetForm = () => {
-    setNewEmployee({
-      name: '',
-      position: '',
-      department: '',
-      baseSalary: 0,
-      commissionRate: 5,
-      phone: '',
-      email: '',
-      address: '',
-      emergencyContact: '',
-      bankAccount: '',
-      panNumber: '',
-      aadharNumber: ''
-    });
-  };
-
-  const handleDeleteEmployee = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this employee?')) {
-      try {
-        await storage.deleteItem('employees', id);
-        await loadEmployees();
-      } catch (err) {
-        console.error('Error deleting employee:', err);
-        setError(err instanceof Error ? err.message : 'Failed to delete employee');
-      }
-    }
-  };
-
-  const handleToggleStatus = async (id: string, currentStatus: boolean) => {
-    try {
-      await storage.updateItem('employees', id, { isActive: !currentStatus });
-      await loadEmployees();
-    } catch (err) {
-      console.error('Error toggling employee status:', err);
-      setError(err instanceof Error ? err.message : 'Failed to update employee status');
-    }
-    await handleRefresh();
-  };
-
-  const handleEditEmployee = (employee: Employee) => {
-    setSelectedEmployee(employee);
-    setNewEmployee({
-      name: employee.name,
-      position: employee.position,
-      department: employee.department || '',
-      baseSalary: employee.baseSalary,
-      commissionRate: employee.commissionRate,
-      phone: employee.phone,
-      email: employee.email,
-      address: employee.address || '',
-      emergencyContact: employee.emergencyContact || '',
-      bankAccount: employee.bankAccount || '',
-      panNumber: employee.panNumber || '',
-      aadharNumber: employee.aadharNumber || ''
-    });
-    setShowEditModal(true);
-  };
-
-  const exportToCSV = () => {
-    const headers = ['Name', 'Position', 'Department', 'Base Salary', 'Commission Rate', 'Join Date', 'Status', 'Phone', 'Email'];
-    const csvData = filteredEmployees.map(employee => [
-      employee.name,
-      employee.position,
-      employee.department || '',
-      employee.baseSalary,
-      employee.commissionRate,
-      formatDate(employee.joinDate),
-      employee.isActive ? 'Active' : 'Inactive',
-      employee.phone,
-      employee.email
-    ]);
-
-    const csvContent = [headers, ...csvData].map(row => row.join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'employees_report.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  const getTotalEmployees = () => filteredEmployees.length;
-  const getActiveEmployees = () => filteredEmployees.filter(emp => emp.isActive).length;
-  const getTotalSalaryBudget = () => filteredEmployees.filter(emp => emp.isActive).reduce((total, emp) => total + emp.baseSalary, 0);
+  const {
+    filteredEmployees,
+    searchTerm,
+    setSearchTerm,
+    showAddModal,
+    setShowAddModal,
+    selectedEmployee,
+    setSelectedEmployee,
+    showEditModal,
+    setShowEditModal,
+    loading,
+    refreshing,
+    error,
+    setError,
+    filters,
+    setFilters,
+    newEmployee,
+    setNewEmployee,
+    positions,
+    departments,
+    handleAddEmployee,
+    handleUpdateEmployee,
+    handleDeleteEmployee,
+    handleToggleStatus,
+    handleEditEmployee,
+    exportToCSV,
+    getTotalEmployees,
+    getActiveEmployees,
+    getTotalSalaryBudget,
+    handleRefresh,
+    formatDate,
+    formatCurrency,
+    resetForm,
+  } = useEmployeeManagement();
 
   if (loading) {
     return (
@@ -289,8 +64,12 @@ const EmployeeManagement: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Employee Management</h2>
-          <p className="text-gray-600">Manage employee information and payroll</p>
+          <h2 className="text-2xl font-bold text-gray-900">
+            Employee Management
+          </h2>
+          <p className="text-gray-600">
+            Manage employee information and payroll
+          </p>
         </div>
         <div className="flex items-center space-x-3">
           <button
@@ -298,7 +77,9 @@ const EmployeeManagement: React.FC = () => {
             disabled={refreshing}
             className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
           >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+            />
             <span>Refresh</span>
           </button>
           <button
@@ -329,8 +110,12 @@ const EmployeeManagement: React.FC = () => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Employees</p>
-              <p className="text-2xl font-bold text-gray-900">{getTotalEmployees()}</p>
+              <p className="text-sm font-medium text-gray-600">
+                Total Employees
+              </p>
+              <p className="text-2xl font-bold text-gray-900">
+                {getTotalEmployees()}
+              </p>
             </div>
             <div className="p-3 bg-blue-100 rounded-lg">
               <Users className="h-6 w-6 text-blue-600" />
@@ -341,8 +126,12 @@ const EmployeeManagement: React.FC = () => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Active Employees</p>
-              <p className="text-2xl font-bold text-green-600">{getActiveEmployees()}</p>
+              <p className="text-sm font-medium text-gray-600">
+                Active Employees
+              </p>
+              <p className="text-2xl font-bold text-green-600">
+                {getActiveEmployees()}
+              </p>
             </div>
             <div className="p-3 bg-green-100 rounded-lg">
               <Award className="h-6 w-6 text-green-600" />
@@ -353,8 +142,12 @@ const EmployeeManagement: React.FC = () => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Monthly Salary Budget</p>
-              <p className="text-2xl font-bold text-purple-600">{formatCurrency(getTotalSalaryBudget())}</p>
+              <p className="text-sm font-medium text-gray-600">
+                Monthly Salary Budget
+              </p>
+              <p className="text-2xl font-bold text-purple-600">
+                {formatCurrency(getTotalSalaryBudget())}
+              </p>
             </div>
             <div className="p-3 bg-purple-100 rounded-lg">
               <DollarSign className="h-6 w-6 text-purple-600" />
@@ -376,26 +169,34 @@ const EmployeeManagement: React.FC = () => {
               className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
-          
+
           <select
             value={filters.position}
-            onChange={(e) => setFilters({ ...filters, position: e.target.value })}
+            onChange={(e) =>
+              setFilters({ ...filters, position: e.target.value })
+            }
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">All Positions</option>
-            {positions.map(position => (
-              <option key={position} value={position}>{position}</option>
+            {positions.map((position) => (
+              <option key={position} value={position}>
+                {position}
+              </option>
             ))}
           </select>
 
           <select
             value={filters.department}
-            onChange={(e) => setFilters({ ...filters, department: e.target.value })}
+            onChange={(e) =>
+              setFilters({ ...filters, department: e.target.value })
+            }
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">All Departments</option>
-            {departments.map(dept => (
-              <option key={dept} value={dept}>{dept}</option>
+            {departments.map((dept) => (
+              <option key={dept} value={dept}>
+                {dept}
+              </option>
             ))}
           </select>
 
@@ -452,7 +253,7 @@ const EmployeeManagement: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredEmployees.map(employee => (
+              {filteredEmployees.map((employee) => (
                 <EmployeeRow
                   key={employee.id}
                   employee={employee}
@@ -471,7 +272,9 @@ const EmployeeManagement: React.FC = () => {
       {showAddModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Add New Employee</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Add New Employee
+            </h3>
             <EmployeeForm
               employee={newEmployee}
               setEmployee={setNewEmployee}
@@ -489,14 +292,16 @@ const EmployeeManagement: React.FC = () => {
       {showEditModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Employee</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Edit Employee
+            </h3>
             <EmployeeForm
               employee={newEmployee}
               setEmployee={setNewEmployee}
               positions={positions}
               departments={departments}
               onSubmit={handleUpdateEmployee}
-              onCancel={() => setShowEditModal(false)}
+              onCancel={() => { setShowEditModal(false); resetForm(); }}
               submitLabel="Update Employee"
             />
           </div>
@@ -507,8 +312,9 @@ const EmployeeManagement: React.FC = () => {
       {selectedEmployee && !showEditModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-lg">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Employee Details</h3>
-            
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Employee Details
+            </h3>
             <div className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-gray-600">Name:</span>
@@ -520,19 +326,27 @@ const EmployeeManagement: React.FC = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Department:</span>
-                <span className="font-medium">{selectedEmployee.department || 'N/A'}</span>
+                <span className="font-medium">
+                  {selectedEmployee.department || "N/A"}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Base Salary:</span>
-                <span className="font-medium">{formatCurrency(selectedEmployee.baseSalary)}</span>
+                <span className="font-medium">
+                  {formatCurrency(selectedEmployee.baseSalary)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Commission Rate:</span>
-                <span className="font-medium">{selectedEmployee.commissionRate}%</span>
+                <span className="font-medium">
+                  {selectedEmployee.commissionRate}%
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Join Date:</span>
-                <span className="font-medium">{formatDate(selectedEmployee.joinDate)}</span>
+                <span className="font-medium">
+                  {formatDate(selectedEmployee.joinDate)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Phone:</span>
@@ -544,24 +358,33 @@ const EmployeeManagement: React.FC = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Status:</span>
-                <span className={`font-medium ${selectedEmployee.isActive ? 'text-green-600' : 'text-red-600'}`}>
-                  {selectedEmployee.isActive ? 'Active' : 'Inactive'}
+                <span
+                  className={`font-medium ${
+                    selectedEmployee.isActive
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }`}
+                >
+                  {selectedEmployee.isActive ? "Active" : "Inactive"}
                 </span>
               </div>
               {selectedEmployee.address && (
                 <div>
                   <span className="text-gray-600">Address:</span>
-                  <p className="mt-1 text-sm text-gray-900">{selectedEmployee.address}</p>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedEmployee.address}
+                  </p>
                 </div>
               )}
               {selectedEmployee.emergencyContact && (
                 <div className="flex justify-between">
                   <span className="text-gray-600">Emergency Contact:</span>
-                  <span className="font-medium">{selectedEmployee.emergencyContact}</span>
+                  <span className="font-medium">
+                    {selectedEmployee.emergencyContact}
+                  </span>
                 </div>
               )}
             </div>
-
             <div className="flex justify-end mt-6 pt-4 border-t border-gray-200">
               <button
                 onClick={() => setSelectedEmployee(null)}

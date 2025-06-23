@@ -1,10 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { Download, Calendar, TrendingUp, TrendingDown, DollarSign, FileText, BarChart3, PieChart, RefreshCw } from 'lucide-react';
-import { storage } from '../utils/storage';
-import { Sale, Expense, Employee } from '../types';
-import { formatCurrency, formatDate, calculateRevenue, calculateExpenses, calculateProfit, calculateProfitMargin } from '../utils/calculations';
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
+import React, { useState, useEffect } from "react";
+import {
+  Download,
+  Calendar,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  FileText,
+  BarChart3,
+  PieChart,
+  RefreshCw,
+} from "lucide-react";
+import { storage } from "../utils/storage";
+import { Sale, Expense, Employee } from "../types";
+import {
+  formatCurrency,
+  formatDate,
+  calculateRevenue,
+  calculateExpenses,
+  calculateProfit,
+  calculateProfitMargin,
+} from "../utils/calculations";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
 
 interface ReportData {
   sales: Sale[];
@@ -15,15 +32,31 @@ interface ReportData {
   profit: number;
   profitMargin: number;
   topProducts: Array<{ product: string; quantity: number; revenue: number }>;
-  expensesByCategory: Array<{ category: string; amount: number; percentage: number }>;
-  salesByPaymentMethod: Array<{ method: string; amount: number; count: number }>;
+  expensesByCategory: Array<{
+    category: string;
+    amount: number;
+    percentage: number;
+  }>;
+  salesByPaymentMethod: Array<{
+    method: string;
+    amount: number;
+    count: number;
+  }>;
 }
 
 const Reports: React.FC = () => {
-  const [reportType, setReportType] = useState<'daily' | 'monthly' | 'yearly'>('monthly');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [reportType, setReportType] = useState<"daily" | "monthly" | "yearly">(
+    "monthly"
+  );
+  const [selectedDate, setSelectedDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
+  const [selectedMonth, setSelectedMonth] = useState(
+    new Date().toISOString().slice(0, 7)
+  );
+  const [selectedYear, setSelectedYear] = useState(
+    new Date().getFullYear().toString()
+  );
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -37,18 +70,18 @@ const Reports: React.FC = () => {
     let start: Date, end: Date;
 
     switch (reportType) {
-      case 'daily':
+      case "daily":
         start = new Date(selectedDate);
         end = new Date(selectedDate);
         end.setHours(23, 59, 59, 999);
         break;
-      case 'monthly':
-        const [year, month] = selectedMonth.split('-');
+      case "monthly":
+        const [year, month] = selectedMonth.split("-");
         start = new Date(parseInt(year), parseInt(month) - 1, 1);
         end = new Date(parseInt(year), parseInt(month), 0);
         end.setHours(23, 59, 59, 999);
         break;
-      case 'yearly':
+      case "yearly":
         start = new Date(parseInt(selectedYear), 0, 1);
         end = new Date(parseInt(selectedYear), 11, 31);
         end.setHours(23, 59, 59, 999);
@@ -65,23 +98,23 @@ const Reports: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const { start, end } = getDateRange();
-      
+
       // Load data
       const [allSales, allExpenses, allEmployees] = await Promise.all([
-        storage.getData<Sale>('sales'),
-        storage.getData<Expense>('expenses'),
-        storage.getData<Employee>('employees')
+        storage.getData<Sale>("sales"),
+        storage.getData<Expense>("expenses"),
+        storage.getData<Employee>("employees"),
       ]);
 
       // Filter data by date range
-      const filteredSales = allSales.filter(sale => {
+      const filteredSales = allSales.filter((sale) => {
         const saleDate = new Date(sale.date);
         return saleDate >= start && saleDate <= end;
       });
 
-      const filteredExpenses = allExpenses.filter(expense => {
+      const filteredExpenses = allExpenses.filter((expense) => {
         const expenseDate = new Date(expense.date);
         return expenseDate >= start && expenseDate <= end;
       });
@@ -93,13 +126,19 @@ const Reports: React.FC = () => {
       const profitMargin = calculateProfitMargin(profit, revenue);
 
       // Top products
-      const productMap = new Map<string, { quantity: number; revenue: number }>();
-      filteredSales.forEach(sale => {
+      const productMap = new Map<
+        string,
+        { quantity: number; revenue: number }
+      >();
+      filteredSales.forEach((sale) => {
         const productKey = `${sale.product.brand} ${sale.product.model}`;
-        const existing = productMap.get(productKey) || { quantity: 0, revenue: 0 };
+        const existing = productMap.get(productKey) || {
+          quantity: 0,
+          revenue: 0,
+        };
         productMap.set(productKey, {
           quantity: existing.quantity + sale.quantity,
-          revenue: existing.revenue + sale.totalAmount
+          revenue: existing.revenue + sale.totalAmount,
         });
       });
 
@@ -110,7 +149,7 @@ const Reports: React.FC = () => {
 
       // Expenses by category
       const expenseCategoryMap = new Map<string, number>();
-      filteredExpenses.forEach(expense => {
+      filteredExpenses.forEach((expense) => {
         const existing = expenseCategoryMap.get(expense.category) || 0;
         expenseCategoryMap.set(expense.category, existing + expense.amount);
       });
@@ -119,17 +158,23 @@ const Reports: React.FC = () => {
         .map(([category, amount]) => ({
           category,
           amount,
-          percentage: totalExpenses > 0 ? (amount / totalExpenses) * 100 : 0
+          percentage: totalExpenses > 0 ? (amount / totalExpenses) * 100 : 0,
         }))
         .sort((a, b) => b.amount - a.amount);
 
       // Sales by payment method
-      const paymentMethodMap = new Map<string, { amount: number; count: number }>();
-      filteredSales.forEach(sale => {
-        const existing = paymentMethodMap.get(sale.paymentMethod) || { amount: 0, count: 0 };
+      const paymentMethodMap = new Map<
+        string,
+        { amount: number; count: number }
+      >();
+      filteredSales.forEach((sale) => {
+        const existing = paymentMethodMap.get(sale.paymentMethod) || {
+          amount: 0,
+          count: 0,
+        };
         paymentMethodMap.set(sale.paymentMethod, {
           amount: existing.amount + sale.totalAmount,
-          count: existing.count + 1
+          count: existing.count + 1,
         });
       });
 
@@ -147,11 +192,13 @@ const Reports: React.FC = () => {
         profitMargin,
         topProducts,
         expensesByCategory,
-        salesByPaymentMethod
+        salesByPaymentMethod,
       });
     } catch (err) {
-      console.error('Error generating report:', err);
-      setError(err instanceof Error ? err.message : 'Failed to generate report');
+      console.error("Error generating report:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to generate report"
+      );
     } finally {
       setLoading(false);
     }
@@ -164,8 +211,10 @@ const Reports: React.FC = () => {
       await storage.refreshData();
       await generateReport();
     } catch (err) {
-      console.error('Error refreshing report data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to refresh report data');
+      console.error("Error refreshing report data:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to refresh report data"
+      );
     } finally {
       setRefreshing(false);
     }
@@ -174,7 +223,9 @@ const Reports: React.FC = () => {
   const exportToPDF = () => {
     if (!reportData) return;
 
-    const reportTitle = `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Financial Report`;
+    const reportTitle = `${
+      reportType.charAt(0).toUpperCase() + reportType.slice(1)
+    } Financial Report`;
     const dateRange = getDateRangeText();
     const doc = new jsPDF();
     let y = 10;
@@ -187,82 +238,152 @@ const Reports: React.FC = () => {
     doc.text(`Generated on: ${new Date().toLocaleString()}`, 10, y);
     y += 10;
     doc.setFontSize(12);
-    doc.text('FINANCIAL SUMMARY', 10, y);
+    doc.text("FINANCIAL SUMMARY", 10, y);
     y += 7;
     doc.setFontSize(10);
     doc.text(`Total Revenue: ${formatCurrency(reportData.revenue)}`, 10, y);
     y += 6;
-    doc.text(`Total Expenses: ${formatCurrency(reportData.totalExpenses)}`, 10, y);
+    doc.text(
+      `Total Expenses: ${formatCurrency(reportData.totalExpenses)}`,
+      10,
+      y
+    );
     y += 6;
     doc.text(`Net Profit: ${formatCurrency(reportData.profit)}`, 10, y);
     y += 6;
     doc.text(`Profit Margin: ${reportData.profitMargin.toFixed(2)}%`, 10, y);
     y += 10;
     doc.setFontSize(12);
-    doc.text('TOP SELLING PRODUCTS', 10, y);
+    doc.text("TOP SELLING PRODUCTS", 10, y);
     y += 7;
     doc.setFontSize(10);
     reportData.topProducts.forEach((product, index) => {
-      doc.text(`${index + 1}. ${product.product} - ${product.quantity} units - ${formatCurrency(product.revenue)}`, 10, y);
+      doc.text(
+        `${index + 1}. ${product.product} - ${
+          product.quantity
+        } units - ${formatCurrency(product.revenue)}`,
+        10,
+        y
+      );
       y += 6;
-      if (y > 270) { doc.addPage(); y = 10; }
+      if (y > 270) {
+        doc.addPage();
+        y = 10;
+      }
     });
     y += 4;
     doc.setFontSize(12);
-    doc.text('EXPENSES BY CATEGORY', 10, y);
+    doc.text("EXPENSES BY CATEGORY", 10, y);
     y += 7;
     doc.setFontSize(10);
-    reportData.expensesByCategory.forEach(expense => {
-      doc.text(`${expense.category}: ${formatCurrency(expense.amount)} (${expense.percentage.toFixed(1)}%)`, 10, y);
+    reportData.expensesByCategory.forEach((expense) => {
+      doc.text(
+        `${expense.category}: ${formatCurrency(
+          expense.amount
+        )} (${expense.percentage.toFixed(1)}%)`,
+        10,
+        y
+      );
       y += 6;
-      if (y > 270) { doc.addPage(); y = 10; }
+      if (y > 270) {
+        doc.addPage();
+        y = 10;
+      }
     });
     y += 4;
     doc.setFontSize(12);
-    doc.text('SALES BY PAYMENT METHOD', 10, y);
+    doc.text("SALES BY PAYMENT METHOD", 10, y);
     y += 7;
     doc.setFontSize(10);
-    reportData.salesByPaymentMethod.forEach(payment => {
-      doc.text(`${payment.method.toUpperCase()}: ${formatCurrency(payment.amount)} (${payment.count} transactions)`, 10, y);
+    reportData.salesByPaymentMethod.forEach((payment) => {
+      doc.text(
+        `${payment.method.toUpperCase()}: ${formatCurrency(payment.amount)} (${
+          payment.count
+        } transactions)`,
+        10,
+        y
+      );
       y += 6;
-      if (y > 270) { doc.addPage(); y = 10; }
+      if (y > 270) {
+        doc.addPage();
+        y = 10;
+      }
     });
-    doc.save(`${reportType}_report_${getDateRangeText().replace(/\s+/g, '_')}.pdf`);
+    doc.save(
+      `${reportType}_report_${getDateRangeText().replace(/\s+/g, "_")}.pdf`
+    );
   };
 
   const exportToExcel = () => {
     if (!reportData) return;
     // Prepare worksheet data
     const summarySheet = [
-      ['Metric', 'Value'],
-      ['Total Revenue', formatCurrency(reportData.revenue)],
-      ['Total Expenses', formatCurrency(reportData.totalExpenses)],
-      ['Net Profit', formatCurrency(reportData.profit)],
-      ['Profit Margin', `${reportData.profitMargin.toFixed(2)}%`],
-      ['Total Sales', reportData.sales.length],
-      ['Total Expense Items', reportData.expenses.length],
+      ["Metric", "Value"],
+      ["Total Revenue", formatCurrency(reportData.revenue)],
+      ["Total Expenses", formatCurrency(reportData.totalExpenses)],
+      ["Net Profit", formatCurrency(reportData.profit)],
+      ["Profit Margin", `${reportData.profitMargin.toFixed(2)}%`],
+      ["Total Sales", reportData.sales.length],
+      ["Total Expense Items", reportData.expenses.length],
     ];
     const topProductsSheet = [
-      ['Product', 'Quantity', 'Revenue'],
-      ...reportData.topProducts.map(p => [p.product, p.quantity, formatCurrency(p.revenue)])
+      ["Product", "Quantity", "Revenue"],
+      ...reportData.topProducts.map((p) => [
+        p.product,
+        p.quantity,
+        formatCurrency(p.revenue),
+      ]),
     ];
     const expensesByCategorySheet = [
-      ['Category', 'Amount', 'Percentage'],
-      ...reportData.expensesByCategory.map(e => [e.category, formatCurrency(e.amount), `${e.percentage.toFixed(1)}%`])
+      ["Category", "Amount", "Percentage"],
+      ...reportData.expensesByCategory.map((e) => [
+        e.category,
+        formatCurrency(e.amount),
+        `${e.percentage.toFixed(1)}%`,
+      ]),
     ];
     const salesByPaymentMethodSheet = [
-      ['Method', 'Amount', 'Count'],
-      ...reportData.salesByPaymentMethod.map(p => [p.method.toUpperCase(), formatCurrency(p.amount), p.count])
+      ["Method", "Amount", "Count"],
+      ...reportData.salesByPaymentMethod.map((p) => [
+        p.method.toUpperCase(),
+        formatCurrency(p.amount),
+        p.count,
+      ]),
     ];
     // Create workbook
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summarySheet), 'Summary');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(topProductsSheet), 'Top Products');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(expensesByCategorySheet), 'Expenses by Category');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(salesByPaymentMethodSheet), 'Sales by Payment');
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.aoa_to_sheet(summarySheet),
+      "Summary"
+    );
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.aoa_to_sheet(topProductsSheet),
+      "Top Products"
+    );
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.aoa_to_sheet(expensesByCategorySheet),
+      "Expenses by Category"
+    );
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.aoa_to_sheet(salesByPaymentMethodSheet),
+      "Sales by Payment"
+    );
     // Sales data sheet
-    const salesHeaders = ['Date', 'Customer', 'Product', 'Quantity', 'Unit Price', 'Total', 'Payment Method', 'Sales Person'];
-    const salesData = reportData.sales.map(sale => [
+    const salesHeaders = [
+      "Date",
+      "Customer",
+      "Product",
+      "Quantity",
+      "Unit Price",
+      "Total",
+      "Payment Method",
+      "Sales Person",
+    ];
+    const salesData = reportData.sales.map((sale) => [
       formatDate(sale.date),
       sale.customerName,
       `${sale.product.brand} ${sale.product.model}`,
@@ -270,31 +391,63 @@ const Reports: React.FC = () => {
       sale.unitPrice,
       sale.totalAmount,
       sale.paymentMethod,
-      sale.salesPerson
+      sale.salesPerson,
     ]);
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([salesHeaders, ...salesData]), 'Sales Data');
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.aoa_to_sheet([salesHeaders, ...salesData]),
+      "Sales Data"
+    );
     // Expenses data sheet
-    const expensesHeaders = ['Date', 'Category', 'Subcategory', 'Description', 'Amount', 'Vendor', 'Payment Method', 'Status'];
-    const expensesData = reportData.expenses.map(expense => [
+    const expensesHeaders = [
+      "Date",
+      "Category",
+      "Subcategory",
+      "Description",
+      "Amount",
+      "Vendor",
+      "Payment Method",
+      "Status",
+    ];
+    const expensesData = reportData.expenses.map((expense) => [
       formatDate(expense.date),
       expense.category,
       expense.subcategory,
       expense.description,
       expense.amount,
-      expense.vendor || '',
+      expense.vendor || "",
       expense.paymentMethod,
-      expense.status
+      expense.status,
     ]);
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([expensesHeaders, ...expensesData]), 'Expenses Data');
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.aoa_to_sheet([expensesHeaders, ...expensesData]),
+      "Expenses Data"
+    );
     // Export
-    XLSX.writeFile(wb, `${reportType}_financial_report_${getDateRangeText().replace(/\s+/g, '_')}.xlsx`);
+    XLSX.writeFile(
+      wb,
+      `${reportType}_financial_report_${getDateRangeText().replace(
+        /\s+/g,
+        "_"
+      )}.xlsx`
+    );
   };
 
   const exportToCSV = () => {
     if (!reportData) return;
     // Sales CSV
-    const salesHeaders = ['Date', 'Customer', 'Product', 'Quantity', 'Unit Price', 'Total', 'Payment Method', 'Sales Person'];
-    const salesData = reportData.sales.map(sale => [
+    const salesHeaders = [
+      "Date",
+      "Customer",
+      "Product",
+      "Quantity",
+      "Unit Price",
+      "Total",
+      "Payment Method",
+      "Sales Person",
+    ];
+    const salesData = reportData.sales.map((sale) => [
       formatDate(sale.date),
       sale.customerName,
       `${sale.product.brand} ${sale.product.model}`,
@@ -302,51 +455,70 @@ const Reports: React.FC = () => {
       sale.unitPrice,
       sale.totalAmount,
       sale.paymentMethod,
-      sale.salesPerson
+      sale.salesPerson,
     ]);
-    const salesCSV = [salesHeaders, ...salesData].map(row => row.join(',')).join('\n');
+    const salesCSV = [salesHeaders, ...salesData]
+      .map((row) => row.join(","))
+      .join("\n");
     // Expenses CSV
-    const expensesHeaders = ['Date', 'Category', 'Subcategory', 'Description', 'Amount', 'Vendor', 'Payment Method', 'Status'];
-    const expensesData = reportData.expenses.map(expense => [
+    const expensesHeaders = [
+      "Date",
+      "Category",
+      "Subcategory",
+      "Description",
+      "Amount",
+      "Vendor",
+      "Payment Method",
+      "Status",
+    ];
+    const expensesData = reportData.expenses.map((expense) => [
       formatDate(expense.date),
       expense.category,
       expense.subcategory,
       expense.description,
       expense.amount,
-      expense.vendor || '',
+      expense.vendor || "",
       expense.paymentMethod,
-      expense.status
+      expense.status,
     ]);
-    const expensesCSV = [expensesHeaders, ...expensesData].map(row => row.join(',')).join('\n');
+    const expensesCSV = [expensesHeaders, ...expensesData]
+      .map((row) => row.join(","))
+      .join("\n");
     // Create combined report
     const combinedCSV = `SALES DATA\n${salesCSV}\n\nEXPENSES DATA\n${expensesCSV}`;
-    const blob = new Blob([combinedCSV], { type: 'text/csv' });
+    const blob = new Blob([combinedCSV], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `${reportType}_report_${getDateRangeText().replace(/\s+/g, '_')}.csv`;
+    a.download = `${reportType}_report_${getDateRangeText().replace(
+      /\s+/g,
+      "_"
+    )}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
 
   const getDateRangeText = () => {
     switch (reportType) {
-      case 'daily':
-        return new Date(selectedDate).toLocaleDateString('en-IN', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
+      case "daily":
+        return new Date(selectedDate).toLocaleDateString("en-IN", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
         });
-      case 'monthly':
-        const [year, month] = selectedMonth.split('-');
-        return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-IN', {
-          year: 'numeric',
-          month: 'long'
-        });
-      case 'yearly':
+      case "monthly":
+        const [year, month] = selectedMonth.split("-");
+        return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString(
+          "en-IN",
+          {
+            year: "numeric",
+            month: "long",
+          }
+        );
+      case "yearly":
         return selectedYear;
       default:
-        return '';
+        return "";
     }
   };
 
@@ -358,19 +530,23 @@ const Reports: React.FC = () => {
     const { start, end } = getDateRange();
 
     switch (reportType) {
-      case 'daily':
+      case "daily":
         prevStart = new Date(start);
         prevStart.setDate(prevStart.getDate() - 1);
         prevEnd = new Date(prevStart);
         prevEnd.setHours(23, 59, 59, 999);
         break;
-      case 'monthly':
+      case "monthly":
         prevStart = new Date(start);
         prevStart.setMonth(prevStart.getMonth() - 1);
-        prevEnd = new Date(prevStart.getFullYear(), prevStart.getMonth() + 1, 0);
+        prevEnd = new Date(
+          prevStart.getFullYear(),
+          prevStart.getMonth() + 1,
+          0
+        );
         prevEnd.setHours(23, 59, 59, 999);
         break;
-      case 'yearly':
+      case "yearly":
         prevStart = new Date(start);
         prevStart.setFullYear(prevStart.getFullYear() - 1);
         prevEnd = new Date(prevStart.getFullYear(), 11, 31);
@@ -407,19 +583,23 @@ const Reports: React.FC = () => {
       let prevStart: Date, prevEnd: Date;
       const { start, end } = getDateRange();
       switch (reportType) {
-        case 'daily':
+        case "daily":
           prevStart = new Date(start);
           prevStart.setDate(prevStart.getDate() - 1);
           prevEnd = new Date(prevStart);
           prevEnd.setHours(23, 59, 59, 999);
           break;
-        case 'monthly':
+        case "monthly":
           prevStart = new Date(start);
           prevStart.setMonth(prevStart.getMonth() - 1);
-          prevEnd = new Date(prevStart.getFullYear(), prevStart.getMonth() + 1, 0);
+          prevEnd = new Date(
+            prevStart.getFullYear(),
+            prevStart.getMonth() + 1,
+            0
+          );
           prevEnd.setHours(23, 59, 59, 999);
           break;
-        case 'yearly':
+        case "yearly":
           prevStart = new Date(start);
           prevStart.setFullYear(prevStart.getFullYear() - 1);
           prevEnd = new Date(prevStart.getFullYear(), 11, 31);
@@ -431,14 +611,14 @@ const Reports: React.FC = () => {
       }
       // Load all sales and expenses for previous period
       const [allSales, allExpenses] = await Promise.all([
-        storage.getData<Sale>('sales'),
-        storage.getData<Expense>('expenses')
+        storage.getData<Sale>("sales"),
+        storage.getData<Expense>("expenses"),
       ]);
-      const prevSales = allSales.filter(sale => {
+      const prevSales = allSales.filter((sale) => {
         const saleDate = new Date(sale.date);
         return saleDate >= prevStart && saleDate <= prevEnd;
       });
-      const prevExpenses = allExpenses.filter(expense => {
+      const prevExpenses = allExpenses.filter((expense) => {
         const expenseDate = new Date(expense.date);
         return expenseDate >= prevStart && expenseDate <= prevEnd;
       });
@@ -453,7 +633,7 @@ const Reports: React.FC = () => {
       setComparisonData({
         revenueChange: getChange(reportData.revenue, prevRevenue),
         expenseChange: getChange(reportData.totalExpenses, prevTotalExpenses),
-        profitChange: getChange(reportData.profit, prevProfit)
+        profitChange: getChange(reportData.profit, prevProfit),
       });
     };
     calcComparison();
@@ -465,8 +645,12 @@ const Reports: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Reports & Analytics</h2>
-          <p className="text-gray-600">Generate comprehensive financial reports</p>
+          <h2 className="text-2xl font-bold text-gray-900">
+            Reports & Analytics
+          </h2>
+          <p className="text-gray-600">
+            Generate comprehensive financial reports
+          </p>
         </div>
         <div className="flex items-center space-x-2">
           <button
@@ -474,7 +658,9 @@ const Reports: React.FC = () => {
             disabled={refreshing}
             className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
           >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+            />
             <span>Refresh</span>
           </button>
           <button
@@ -519,14 +705,20 @@ const Reports: React.FC = () => {
 
       {/* Report Configuration */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Report Configuration</h3>
-        
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Report Configuration
+        </h3>
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Report Type</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Report Type
+            </label>
             <select
               value={reportType}
-              onChange={(e) => setReportType(e.target.value as 'daily' | 'monthly' | 'yearly')}
+              onChange={(e) =>
+                setReportType(e.target.value as "daily" | "monthly" | "yearly")
+              }
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="daily">Daily Report</option>
@@ -535,9 +727,11 @@ const Reports: React.FC = () => {
             </select>
           </div>
 
-          {reportType === 'daily' && (
+          {reportType === "daily" && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Date
+              </label>
               <input
                 type="date"
                 value={selectedDate}
@@ -547,9 +741,11 @@ const Reports: React.FC = () => {
             </div>
           )}
 
-          {reportType === 'monthly' && (
+          {reportType === "monthly" && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Month</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Month
+              </label>
               <input
                 type="month"
                 value={selectedMonth}
@@ -559,16 +755,23 @@ const Reports: React.FC = () => {
             </div>
           )}
 
-          {reportType === 'yearly' && (
+          {reportType === "yearly" && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Year</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Year
+              </label>
               <select
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i).map(year => (
-                  <option key={year} value={year}>{year}</option>
+                {Array.from(
+                  { length: 10 },
+                  (_, i) => new Date().getFullYear() - i
+                ).map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
                 ))}
               </select>
             </div>
@@ -581,7 +784,7 @@ const Reports: React.FC = () => {
               className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
             >
               <BarChart3 className="h-4 w-4" />
-              <span>{loading ? 'Generating...' : 'Generate Report'}</span>
+              <span>{loading ? "Generating..." : "Generate Report"}</span>
             </button>
           </div>
         </div>
@@ -602,11 +805,22 @@ const Reports: React.FC = () => {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                  <p className="text-2xl font-bold text-green-600">{formatCurrency(reportData.revenue)}</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Revenue
+                  </p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {formatCurrency(reportData.revenue)}
+                  </p>
                   {comparisonData && (
-                    <p className={`text-sm ${comparisonData.revenueChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {comparisonData.revenueChange >= 0 ? '+' : ''}{comparisonData.revenueChange.toFixed(1)}% vs previous
+                    <p
+                      className={`text-sm ${
+                        comparisonData.revenueChange >= 0
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }`}
+                    >
+                      {comparisonData.revenueChange >= 0 ? "+" : ""}
+                      {comparisonData.revenueChange.toFixed(1)}% vs previous
                     </p>
                   )}
                 </div>
@@ -619,11 +833,22 @@ const Reports: React.FC = () => {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Expenses</p>
-                  <p className="text-2xl font-bold text-red-600">{formatCurrency(reportData.totalExpenses)}</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Expenses
+                  </p>
+                  <p className="text-2xl font-bold text-red-600">
+                    {formatCurrency(reportData.totalExpenses)}
+                  </p>
                   {comparisonData && (
-                    <p className={`text-sm ${comparisonData.expenseChange <= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {comparisonData.expenseChange >= 0 ? '+' : ''}{comparisonData.expenseChange.toFixed(1)}% vs previous
+                    <p
+                      className={`text-sm ${
+                        comparisonData.expenseChange <= 0
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }`}
+                    >
+                      {comparisonData.expenseChange >= 0 ? "+" : ""}
+                      {comparisonData.expenseChange.toFixed(1)}% vs previous
                     </p>
                   )}
                 </div>
@@ -636,13 +861,26 @@ const Reports: React.FC = () => {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Net Profit</p>
-                  <p className={`text-2xl font-bold ${reportData.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className="text-sm font-medium text-gray-600">
+                    Net Profit
+                  </p>
+                  <p
+                    className={`text-2xl font-bold ${
+                      reportData.profit >= 0 ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
                     {formatCurrency(reportData.profit)}
                   </p>
                   {comparisonData && (
-                    <p className={`text-sm ${comparisonData.profitChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {comparisonData.profitChange >= 0 ? '+' : ''}{comparisonData.profitChange.toFixed(1)}% vs previous
+                    <p
+                      className={`text-sm ${
+                        comparisonData.profitChange >= 0
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }`}
+                    >
+                      {comparisonData.profitChange >= 0 ? "+" : ""}
+                      {comparisonData.profitChange.toFixed(1)}% vs previous
                     </p>
                   )}
                 </div>
@@ -655,8 +893,16 @@ const Reports: React.FC = () => {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Profit Margin</p>
-                  <p className={`text-2xl font-bold ${reportData.profitMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className="text-sm font-medium text-gray-600">
+                    Profit Margin
+                  </p>
+                  <p
+                    className={`text-2xl font-bold ${
+                      reportData.profitMargin >= 0
+                        ? "text-green-600"
+                        : "text-red-600"
+                    }`}
+                  >
                     {reportData.profitMargin.toFixed(1)}%
                   </p>
                   <p className="text-sm text-gray-500">
@@ -674,54 +920,84 @@ const Reports: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Top Products */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Selling Products</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Top Selling Products
+              </h3>
               <div className="space-y-3">
                 {reportData.topProducts.length > 0 ? (
                   reportData.topProducts.map((product, index) => (
-                    <div key={product.product} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div
+                      key={product.product}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    >
                       <div className="flex items-center">
                         <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                          <span className="text-blue-600 font-medium text-sm">{index + 1}</span>
+                          <span className="text-blue-600 font-medium text-sm">
+                            {index + 1}
+                          </span>
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900">{product.product}</p>
-                          <p className="text-sm text-gray-600">{product.quantity} units sold</p>
+                          <p className="font-medium text-gray-900">
+                            {product.product}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {product.quantity} units sold
+                          </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold text-gray-900">{formatCurrency(product.revenue)}</p>
+                        <p className="font-semibold text-gray-900">
+                          {formatCurrency(product.revenue)}
+                        </p>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <p className="text-gray-500 text-center py-8">No sales data available for this period</p>
+                  <p className="text-gray-500 text-center py-8">
+                    No sales data available for this period
+                  </p>
                 )}
               </div>
             </div>
 
             {/* Expenses by Category */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Expenses by Category</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Expenses by Category
+              </h3>
               <div className="space-y-3">
                 {reportData.expensesByCategory.length > 0 ? (
                   reportData.expensesByCategory.map((expense, index) => (
-                    <div key={expense.category} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div
+                      key={expense.category}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    >
                       <div className="flex items-center">
                         <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-3">
-                          <span className="text-red-600 font-medium text-sm">{index + 1}</span>
+                          <span className="text-red-600 font-medium text-sm">
+                            {index + 1}
+                          </span>
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900 capitalize">{expense.category}</p>
-                          <p className="text-sm text-gray-600">{expense.percentage.toFixed(1)}% of total</p>
+                          <p className="font-medium text-gray-900 capitalize">
+                            {expense.category}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {expense.percentage.toFixed(1)}% of total
+                          </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold text-gray-900">{formatCurrency(expense.amount)}</p>
+                        <p className="font-semibold text-gray-900">
+                          {formatCurrency(expense.amount)}
+                        </p>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <p className="text-gray-500 text-center py-8">No expense data available for this period</p>
+                  <p className="text-gray-500 text-center py-8">
+                    No expense data available for this period
+                  </p>
                 )}
               </div>
             </div>
@@ -729,16 +1005,25 @@ const Reports: React.FC = () => {
 
           {/* Sales by Payment Method */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Sales by Payment Method</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Sales by Payment Method
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {reportData.salesByPaymentMethod.map((payment) => (
                 <div key={payment.method} className="p-4 bg-gray-50 rounded-lg">
                   <div className="text-center">
-                    <p className="text-sm font-medium text-gray-600 uppercase">{payment.method}</p>
-                    <p className="text-xl font-bold text-gray-900 mt-1">{formatCurrency(payment.amount)}</p>
-                    <p className="text-sm text-gray-500">{payment.count} transactions</p>
+                    <p className="text-sm font-medium text-gray-600 uppercase">
+                      {payment.method}
+                    </p>
+                    <p className="text-xl font-bold text-gray-900 mt-1">
+                      {formatCurrency(payment.amount)}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {payment.count} transactions
+                    </p>
                     <p className="text-sm text-blue-600">
-                      {((payment.amount / reportData.revenue) * 100).toFixed(1)}% of total
+                      {((payment.amount / reportData.revenue) * 100).toFixed(1)}
+                      % of total
                     </p>
                   </div>
                 </div>
@@ -750,22 +1035,36 @@ const Reports: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Recent Sales */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Sales</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Recent Sales
+              </h3>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Date
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Customer
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Amount
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {reportData.sales.slice(0, 10).map((sale) => (
                       <tr key={sale.id}>
-                        <td className="px-4 py-2 text-sm text-gray-900">{formatDate(sale.date)}</td>
-                        <td className="px-4 py-2 text-sm text-gray-900">{sale.customerName}</td>
-                        <td className="px-4 py-2 text-sm font-medium text-gray-900">{formatCurrency(sale.totalAmount)}</td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {formatDate(sale.date)}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {sale.customerName}
+                        </td>
+                        <td className="px-4 py-2 text-sm font-medium text-gray-900">
+                          {formatCurrency(sale.totalAmount)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -775,22 +1074,36 @@ const Reports: React.FC = () => {
 
             {/* Recent Expenses */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Expenses</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Recent Expenses
+              </h3>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Date
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Category
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Amount
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {reportData.expenses.slice(0, 10).map((expense) => (
                       <tr key={expense.id}>
-                        <td className="px-4 py-2 text-sm text-gray-900">{formatDate(expense.date)}</td>
-                        <td className="px-4 py-2 text-sm text-gray-900 capitalize">{expense.category}</td>
-                        <td className="px-4 py-2 text-sm font-medium text-gray-900">{formatCurrency(expense.amount)}</td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {formatDate(expense.date)}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900 capitalize">
+                          {expense.category}
+                        </td>
+                        <td className="px-4 py-2 text-sm font-medium text-gray-900">
+                          {formatCurrency(expense.amount)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -811,7 +1124,10 @@ const Reports: React.FC = () => {
       {!reportData && !loading && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
           <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">Configure your report settings and click "Generate Report" to view analytics</p>
+          <p className="text-gray-600">
+            Configure your report settings and click "Generate Report" to view
+            analytics
+          </p>
         </div>
       )}
     </div>
