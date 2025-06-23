@@ -47,7 +47,9 @@ const transformExpenseFromDB = (dbExpense: any): Expense => ({
   approvedBy: dbExpense.approved_by || '',
   status: dbExpense.status as 'pending' | 'approved' | 'rejected',
   isRecurring: dbExpense.is_recurring,
-  recurringFrequency: dbExpense.recurring_frequency as 'daily' | 'weekly' | 'monthly' | 'yearly' | undefined
+  recurringFrequency: dbExpense.recurring_frequency as 'daily' | 'weekly' | 'monthly' | 'yearly' | undefined,
+  from_location: dbExpense.from_location || '',
+  to_location: dbExpense.to_location || ''
 });
 
 const transformEmployeeFromDB = (dbEmployee: any): Employee => ({
