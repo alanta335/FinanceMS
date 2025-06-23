@@ -153,7 +153,7 @@ export function useEmployeeManagement() {
 
     const handleToggleStatus = async (id: string, currentStatus: boolean) => {
         try {
-            await storage.updateItem('employees', id, { isActive: !currentStatus });
+            await storage.updateItem('employees', id, { isActive: !currentStatus } as Partial<Employee>);
             await loadEmployees();
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to update employee status');

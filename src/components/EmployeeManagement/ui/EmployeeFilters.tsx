@@ -4,8 +4,8 @@ import { Search, Download } from "lucide-react";
 interface EmployeeFiltersProps {
   searchTerm: string;
   setSearchTerm: (v: string) => void;
-  filters: any;
-  setFilters: (f: any) => void;
+  filters: { position: string; status: string; department: string };
+  setFilters: (f: { position: string; status: string; department: string }) => void;
   positions: string[];
   departments: string[];
   exportToCSV: () => void;

@@ -10,13 +10,13 @@ interface EmployeeModalsProps {
   setNewEmployee: (e: Employee) => void;
   positions: string[];
   departments: string[];
-  handleAddEmployee: (e: Employee) => void;
-  handleUpdateEmployee: (e: Employee) => void;
+  handleAddEmployee: () => void;
+  handleUpdateEmployee: () => void;
   setShowAddModal: (v: boolean) => void;
   setShowEditModal: (v: boolean) => void;
   resetForm: () => void;
   formatCurrency: (n: number) => string;
-  formatDate: (d: string) => string;
+  formatDate: (d: string | Date) => string;
   setSelectedEmployee: (e: Employee | null) => void;
 }
 
@@ -45,8 +45,8 @@ const EmployeeModals: React.FC<EmployeeModalsProps> = ({
             Add New Employee
           </h3>
           <EmployeeForm
-            employee={newEmployee}
-            setEmployee={setNewEmployee}
+            employee={newEmployee as Omit<Employee, 'id' | 'joinDate' | 'isActive'>}
+            setEmployee={setNewEmployee as React.Dispatch<React.SetStateAction<Omit<Employee, 'id' | 'joinDate' | 'isActive'>>>}
             positions={positions}
             departments={departments}
             onSubmit={handleAddEmployee}
@@ -63,8 +63,8 @@ const EmployeeModals: React.FC<EmployeeModalsProps> = ({
             Edit Employee
           </h3>
           <EmployeeForm
-            employee={newEmployee}
-            setEmployee={setNewEmployee}
+            employee={newEmployee as Omit<Employee, 'id' | 'joinDate' | 'isActive'>}
+            setEmployee={setNewEmployee as React.Dispatch<React.SetStateAction<Omit<Employee, 'id' | 'joinDate' | 'isActive'>>>}
             positions={positions}
             departments={departments}
             onSubmit={handleUpdateEmployee}
