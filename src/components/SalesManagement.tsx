@@ -188,6 +188,19 @@ const SalesManagement: React.FC = () => {
     window.URL.revokeObjectURL(url);
   };
 
+  // --- Sales Summary Functions ---
+  const getTotalSalesAmount = () => {
+    return filteredSales.reduce((total, sale) => total + sale.totalAmount, 0);
+  };
+
+  const getTotalQuantitySold = () => {
+    return filteredSales.reduce((total, sale) => total + sale.quantity, 0);
+  };
+
+  const getTotalCommission = () => {
+    return filteredSales.reduce((total, sale) => total + sale.commission, 0);
+  };
+
   if (loading) {
     return (
       <div className="space-y-6 max-w-none">
@@ -238,6 +251,43 @@ const SalesManagement: React.FC = () => {
           </button>
         </div>
       )}
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Sales</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrency(getTotalSalesAmount())}</p>
+            </div>
+            <div className="p-3 bg-blue-100 rounded-lg">
+              <Download className="h-6 w-6 text-blue-600" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Quantity Sold</p>
+              <p className="text-2xl font-bold text-green-600">{getTotalQuantitySold()}</p>
+            </div>
+            <div className="p-3 bg-green-100 rounded-lg">
+              <Plus className="h-6 w-6 text-green-600" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Commission</p>
+              <p className="text-2xl font-bold text-yellow-600">{formatCurrency(getTotalCommission())}</p>
+            </div>
+            <div className="p-3 bg-yellow-100 rounded-lg">
+              <Filter className="h-6 w-6 text-yellow-600" />
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Filters and Search */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
