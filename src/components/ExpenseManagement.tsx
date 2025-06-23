@@ -1,13 +1,11 @@
 import React from "react";
-import {
-  useExpenseManagement,
-  ErrorDisplay,
-  SummaryCards,
-  Filters,
-  ExpensesTable,
-  AddExpenseModal,
-  ExpenseDetailsModal,
-} from "./ExpenseManagement";
+import { useExpenseManagement } from "./ExpenseManagement/useExpenseManagement";
+import ErrorDisplay from "./ExpenseManagement/ui/ErrorDisplay";
+import SummaryCards from "./ExpenseManagement/ui/SummaryCards";
+import Filters from "./ExpenseManagement/ui/Filters";
+import ExpensesTable from "./ExpenseManagement/ui/ExpensesTable";
+import AddExpenseModal from "./ExpenseManagement/ui/AddExpenseModal";
+import ExpenseDetailsModal from "./ExpenseManagement/ui/ExpenseDetailsModal";
 import { Expense } from "../types";
 
 const ExpenseManagement: React.FC = () => {
