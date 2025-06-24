@@ -212,17 +212,18 @@ class SupabaseStorage {
     return this.wrap('get top selling products', async () => {
       const { data, error } = await supabase.from('sales').select('*');
       if (error || !data) return [];
-      
+
+      // Use Sale type for data
       const productMap = new Map<string, { quantity: number; revenue: number }>();
-      data.forEach((sale: any) => {
+      (data as Sale[]).forEach((sale) => {
         const productKey = sale.product?.brand + ' ' + sale.product?.model;
         const existing = productMap.get(productKey) || { quantity: 0, revenue: 0 };
         productMap.set(productKey, {
           quantity: existing.quantity + (sale.quantity || 0),
-          revenue: existing.revenue + (sale.total_amount || 0)
+          revenue: existing.revenue + (sale.totalAmount || 0)
         });
       });
-      
+
       return Array.from(productMap.entries())
         .map(([product, data]) => ({ product, ...data }))
         .sort((a, b) => b.revenue - a.revenue)
@@ -236,24 +237,24 @@ class SupabaseStorage {
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const salesRes = await supabase.from('sales').select('*');
       const expensesRes = await supabase.from('expenses').select('*');
-      
+
       if (salesRes.error) handleSupabaseError(salesRes.error, 'fetch sales for trends');
       if (expensesRes.error) handleSupabaseError(expensesRes.error, 'fetch expenses for trends');
-      
-      const sales = salesRes.data || [];
-      const expenses = expensesRes.data || [];
-      
+
+      const sales = (salesRes.data || []) as Sale[];
+      const expenses = (expensesRes.data || []) as Expense[];
+
       return months.map((month, monthIndex) => {
-        const monthSales = sales.filter((sale: any) => {
+        const monthSales = sales.filter((sale) => {
           const saleDate = new Date(sale.date);
           return saleDate.getFullYear() === year && saleDate.getMonth() === monthIndex;
         });
-        const monthExpenses = expenses.filter((expense: any) => {
+        const monthExpenses = expenses.filter((expense) => {
           const expenseDate = new Date(expense.date);
           return expenseDate.getFullYear() === year && expenseDate.getMonth() === monthIndex;
         });
-        const revenue = monthSales.reduce((total: number, sale: any) => total + (sale.total_amount || 0), 0);
-        const expenseTotal = monthExpenses.reduce((total: number, expense: any) => total + (expense.amount || 0), 0);
+        const revenue = monthSales.reduce((total, sale) => total + (sale.totalAmount || 0), 0);
+        const expenseTotal = monthExpenses.reduce((total, expense) => total + (expense.amount || 0), 0);
         const profit = revenue - expenseTotal;
         return { month, revenue, expenses: expenseTotal, profit };
       });
