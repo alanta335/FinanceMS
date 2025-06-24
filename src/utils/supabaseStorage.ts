@@ -208,79 +208,84 @@ class SupabaseStorage {
   }
 
   async getTopSellingProducts(limit: number = 5): Promise<Array<{ product: string; quantity: number; revenue: number }>> {
-    return this.wrap('get top selling products', async () => {
-      try {
-        // Try RPC first
-        const { data, error } = await supabase.rpc('get_top_selling_products', { limit_param: limit });
-        if (!error && data) {
-          return data.map((row: { product: string; quantity: number; revenue: number }) => ({
-            product: row.product,
-            quantity: row.quantity,
-            revenue: row.revenue
-          }));
-        }
-      } catch (e) { /* ignore */ }
-      try {
-        // Fallback: JS aggregation
-        const { data, error } = await supabase.from('sales').select('*');
-        if (error || !data) return [];
-        const productMap = new Map<string, { quantity: number; revenue: number }>();
-        data.forEach((sale: any) => {
-          const productKey = sale.product?.brand + ' ' + sale.product?.model;
-          const existing = productMap.get(productKey) || { quantity: 0, revenue: 0 };
-          productMap.set(productKey, {
-            quantity: existing.quantity + (sale.quantity || 0),
-            revenue: existing.revenue + (sale.total_amount || 0)
-          });
-        });
-        return Array.from(productMap.entries())
-          .map(([product, data]) => ({ product, ...data }))
-          .sort((a, b) => b.revenue - a.revenue)
-          .slice(0, limit);
-      } catch (e) {
-        return [];
+    // Try RPC first, but handle failure gracefully without throwing
+    try {
+      const { data, error } = await supabase.rpc('get_top_selling_products', { limit_param: limit });
+      if (!error && data) {
+        return data.map((row: { product: string; quantity: number; revenue: number }) => ({
+          product: row.product,
+          quantity: row.quantity,
+          revenue: row.revenue
+        }));
       }
+    } catch (e) {
+      console.warn('RPC get_top_selling_products not available, using fallback');
+    }
+
+    // Fallback: JS aggregation wrapped in error handler
+    return this.wrap('get top selling products', async () => {
+      const { data, error } = await supabase.from('sales').select('*');
+      if (error || !data) return [];
+      
+      const productMap = new Map<string, { quantity: number; revenue: number }>();
+      data.forEach((sale: any) => {
+        const productKey = sale.product?.brand + ' ' + sale.product?.model;
+        const existing = productMap.get(productKey) || { quantity: 0, revenue: 0 };
+        productMap.set(productKey, {
+          quantity: existing.quantity + (sale.quantity || 0),
+          revenue: existing.revenue + (sale.total_amount || 0)
+        });
+      });
+      
+      return Array.from(productMap.entries())
+        .map(([product, data]) => ({ product, ...data }))
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, limit);
     });
   }
 
   async getMonthlyTrends(year: number): Promise<Array<{ month: string; revenue: number; expenses: number; profit: number }>> {
-    return this.wrap('get monthly trends', async () => {
-      try {
-        // Try RPC first
-        const { data, error } = await supabase.rpc('get_monthly_trends', { year_param: year });
-        if (!error && data) {
-          return data.map((row: { month: string; revenue: number; expenses: number; profit: number }) => ({
-            month: row.month,
-            revenue: row.revenue,
-            expenses: row.expenses,
-            profit: row.profit
-          }));
-        }
-      } catch (e) { /* ignore */ }
-      try {
-        // Fallback: JS aggregation
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const salesRes = await supabase.from('sales').select('*');
-        const expensesRes = await supabase.from('expenses').select('*');
-        const sales = salesRes.data || [];
-        const expenses = expensesRes.data || [];
-        return months.map((month, monthIndex) => {
-          const monthSales = sales.filter((sale: any) => {
-            const saleDate = new Date(sale.date);
-            return saleDate.getFullYear() === year && saleDate.getMonth() === monthIndex;
-          });
-          const monthExpenses = expenses.filter((expense: any) => {
-            const expenseDate = new Date(expense.date);
-            return expenseDate.getFullYear() === year && expenseDate.getMonth() === monthIndex;
-          });
-          const revenue = monthSales.reduce((total: number, sale: any) => total + (sale.total_amount || 0), 0);
-          const expenseTotal = monthExpenses.reduce((total: number, expense: any) => total + (expense.amount || 0), 0);
-          const profit = revenue - expenseTotal;
-          return { month, revenue, expenses: expenseTotal, profit };
-        });
-      } catch (e) {
-        return [];
+    // Try RPC first, but handle failure gracefully without throwing
+    try {
+      const { data, error } = await supabase.rpc('get_monthly_trends', { year_param: year });
+      if (!error && data) {
+        return data.map((row: { month: string; revenue: number; expenses: number; profit: number }) => ({
+          month: row.month,
+          revenue: row.revenue,
+          expenses: row.expenses,
+          profit: row.profit
+        }));
       }
+    } catch (e) {
+      console.warn('RPC get_monthly_trends not available, using fallback');
+    }
+
+    // Fallback: JS aggregation wrapped in error handler
+    return this.wrap('get monthly trends', async () => {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const salesRes = await supabase.from('sales').select('*');
+      const expensesRes = await supabase.from('expenses').select('*');
+      
+      if (salesRes.error) handleSupabaseError(salesRes.error, 'fetch sales for trends');
+      if (expensesRes.error) handleSupabaseError(expensesRes.error, 'fetch expenses for trends');
+      
+      const sales = salesRes.data || [];
+      const expenses = expensesRes.data || [];
+      
+      return months.map((month, monthIndex) => {
+        const monthSales = sales.filter((sale: any) => {
+          const saleDate = new Date(sale.date);
+          return saleDate.getFullYear() === year && saleDate.getMonth() === monthIndex;
+        });
+        const monthExpenses = expenses.filter((expense: any) => {
+          const expenseDate = new Date(expense.date);
+          return expenseDate.getFullYear() === year && expenseDate.getMonth() === monthIndex;
+        });
+        const revenue = monthSales.reduce((total: number, sale: any) => total + (sale.total_amount || 0), 0);
+        const expenseTotal = monthExpenses.reduce((total: number, expense: any) => total + (expense.amount || 0), 0);
+        const profit = revenue - expenseTotal;
+        return { month, revenue, expenses: expenseTotal, profit };
+      });
     });
   }
 
