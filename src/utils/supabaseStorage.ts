@@ -208,21 +208,7 @@ class SupabaseStorage {
   }
 
   async getTopSellingProducts(limit: number = 5): Promise<Array<{ product: string; quantity: number; revenue: number }>> {
-    // Try RPC first, but handle failure gracefully without throwing
-    try {
-      const { data, error } = await supabase.rpc('get_top_selling_products', { limit_param: limit });
-      if (!error && data) {
-        return data.map((row: { product: string; quantity: number; revenue: number }) => ({
-          product: row.product,
-          quantity: row.quantity,
-          revenue: row.revenue
-        }));
-      }
-    } catch (e) {
-      console.warn('RPC get_top_selling_products not available, using fallback');
-    }
-
-    // Fallback: JS aggregation wrapped in error handler
+    // Use JavaScript aggregation directly instead of trying RPC first
     return this.wrap('get top selling products', async () => {
       const { data, error } = await supabase.from('sales').select('*');
       if (error || !data) return [];
@@ -245,22 +231,7 @@ class SupabaseStorage {
   }
 
   async getMonthlyTrends(year: number): Promise<Array<{ month: string; revenue: number; expenses: number; profit: number }>> {
-    // Try RPC first, but handle failure gracefully without throwing
-    try {
-      const { data, error } = await supabase.rpc('get_monthly_trends', { year_param: year });
-      if (!error && data) {
-        return data.map((row: { month: string; revenue: number; expenses: number; profit: number }) => ({
-          month: row.month,
-          revenue: row.revenue,
-          expenses: row.expenses,
-          profit: row.profit
-        }));
-      }
-    } catch (e) {
-      console.warn('RPC get_monthly_trends not available, using fallback');
-    }
-
-    // Fallback: JS aggregation wrapped in error handler
+    // Use JavaScript aggregation directly instead of trying RPC first
     return this.wrap('get monthly trends', async () => {
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const salesRes = await supabase.from('sales').select('*');
