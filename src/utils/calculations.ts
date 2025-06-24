@@ -1,4 +1,5 @@
 import { Sale, Expense } from '../types';
+import { supabaseStorage } from './supabaseStorage';
 
 // Overloaded function signatures for calculateRevenue
 export function calculateRevenue(sales: Sale[], dateRange?: { start: Date; end: Date }): number;
@@ -8,20 +9,19 @@ export function calculateRevenue(salesOrDateRange?: Sale[] | { start: Date; end:
   if (Array.isArray(salesOrDateRange)) {
     const sales = salesOrDateRange;
     let filteredSales = sales;
-    
+
     if (dateRange) {
       filteredSales = sales.filter((sale) => {
         const saleDate = new Date(sale.date);
         return saleDate >= dateRange.start && saleDate <= dateRange.end;
       });
     }
-    
+
     return filteredSales.reduce((total, sale) => total + sale.totalAmount, 0);
   }
-  
+
   // If first parameter is not an array, it's a date range (async Supabase call)
   // This is for backward compatibility with existing dashboard code
-  const { supabaseStorage } = require('./supabaseStorage');
   return supabaseStorage.getRevenueSum(salesOrDateRange);
 }
 
@@ -33,20 +33,19 @@ export function calculateExpenses(expensesOrDateRange?: Expense[] | { start: Dat
   if (Array.isArray(expensesOrDateRange)) {
     const expenses = expensesOrDateRange;
     let filteredExpenses = expenses;
-    
+
     if (dateRange) {
       filteredExpenses = expenses.filter((expense) => {
         const expenseDate = new Date(expense.date);
         return expenseDate >= dateRange.start && expenseDate <= dateRange.end;
       });
     }
-    
+
     return filteredExpenses.reduce((total, expense) => total + expense.amount, 0);
   }
-  
+
   // If first parameter is not an array, it's a date range (async Supabase call)
   // This is for backward compatibility with existing dashboard code
-  const { supabaseStorage } = require('./supabaseStorage');
   return supabaseStorage.getExpensesSum(expensesOrDateRange);
 }
 
@@ -67,9 +66,9 @@ export function getTopSellingProducts(salesOrLimit?: Sale[] | number, limit = 5)
   if (Array.isArray(salesOrLimit)) {
     const sales = salesOrLimit;
     const actualLimit = typeof limit === 'number' ? limit : 5;
-    
+
     const productMap = new Map<string, { quantity: number; revenue: number }>();
-    
+
     sales.forEach((sale) => {
       const productKey = `${sale.product.brand} ${sale.product.model}`;
       const existing = productMap.get(productKey) || { quantity: 0, revenue: 0 };
@@ -78,15 +77,14 @@ export function getTopSellingProducts(salesOrLimit?: Sale[] | number, limit = 5)
         revenue: existing.revenue + sale.totalAmount,
       });
     });
-    
+
     return Array.from(productMap.entries())
       .map(([product, data]) => ({ product, ...data }))
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, actualLimit);
   }
-  
+
   // If first parameter is not an array, it's the limit (async Supabase call)
-  const { supabaseStorage } = require('./supabaseStorage');
   const actualLimit = typeof salesOrLimit === 'number' ? salesOrLimit : 5;
   return supabaseStorage.getTopSellingProducts(actualLimit);
 }
@@ -100,30 +98,29 @@ export function getMonthlyTrends(salesOrYear: Sale[] | number, expensesOrUndefin
     const sales = salesOrYear;
     const expenses = expensesOrUndefined as Expense[];
     const targetYear = year as number;
-    
+
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    
+
     return months.map((month, monthIndex) => {
       const monthSales = sales.filter((sale) => {
         const saleDate = new Date(sale.date);
         return saleDate.getFullYear() === targetYear && saleDate.getMonth() === monthIndex;
       });
-      
+
       const monthExpenses = expenses.filter((expense) => {
         const expenseDate = new Date(expense.date);
         return expenseDate.getFullYear() === targetYear && expenseDate.getMonth() === monthIndex;
       });
-      
+
       const revenue = monthSales.reduce((total, sale) => total + sale.totalAmount, 0);
       const expenseTotal = monthExpenses.reduce((total, expense) => total + expense.amount, 0);
       const profit = revenue - expenseTotal;
-      
+
       return { month, revenue, expenses: expenseTotal, profit };
     });
   }
-  
+
   // If first parameter is not an array, it's the year (async Supabase call)
-  const { supabaseStorage } = require('./supabaseStorage');
   const targetYear = salesOrYear as number;
   return supabaseStorage.getMonthlyTrends(targetYear);
 }
