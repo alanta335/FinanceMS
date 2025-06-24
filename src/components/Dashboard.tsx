@@ -43,46 +43,21 @@ const Dashboard: React.FC = () => {
     margin: { value: "+0%", type: "neutral" },
   });
 
-  // Helper to calculate previous month stats
-  const getPrevMonthStats = useCallback(
-    (salesData: Sale[], expensesData: Expense[]) => {
-      const now = new Date();
-      const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const startOfPrevMonth = new Date(
-        prevMonth.getFullYear(),
-        prevMonth.getMonth(),
-        1
-      );
-      const endOfPrevMonth = new Date(
-        prevMonth.getFullYear(),
-        prevMonth.getMonth() + 1,
-        0
-      );
-      const prevRevenue = calculateRevenue(salesData, {
-        start: startOfPrevMonth,
-        end: endOfPrevMonth,
-      });
-      const prevExpenses = calculateExpenses(expensesData, {
-        start: startOfPrevMonth,
-        end: endOfPrevMonth,
-      });
-      const prevProfit = calculateProfit(prevRevenue, prevExpenses);
-      const prevProfitMargin = calculateProfitMargin(prevProfit, prevRevenue);
-      return { prevRevenue, prevExpenses, prevProfit, prevProfitMargin };
-    },
-    []
-  );
-
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Load raw data
       const [salesData, expensesData] = await Promise.all([
         storage.getData<Sale>("sales"),
         storage.getData<Expense>("expenses"),
       ]);
+      
       setSales(salesData);
       setExpenses(expensesData);
+
+      // Calculate current month date range
       const currentMonth = new Date();
       const startOfMonth = new Date(
         currentMonth.getFullYear(),
@@ -94,26 +69,61 @@ const Dashboard: React.FC = () => {
         currentMonth.getMonth() + 1,
         0
       );
-      const monthlyRevenue = calculateRevenue(salesData, {
+
+      // Calculate previous month date range
+      const prevMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+      const startOfPrevMonth = new Date(
+        prevMonth.getFullYear(),
+        prevMonth.getMonth(),
+        1
+      );
+      const endOfPrevMonth = new Date(
+        prevMonth.getFullYear(),
+        prevMonth.getMonth() + 1,
+        0
+      );
+
+      // Calculate current month metrics
+      const monthlyRevenue = await calculateRevenue(salesData, {
         start: startOfMonth,
         end: endOfMonth,
       });
-      const monthlyExpenses = calculateExpenses(expensesData, {
+      const monthlyExpenses = await calculateExpenses(expensesData, {
         start: startOfMonth,
         end: endOfMonth,
       });
       const monthlyProfit = calculateProfit(monthlyRevenue, monthlyExpenses);
       const profitMargin = calculateProfitMargin(monthlyProfit, monthlyRevenue);
+
+      // Calculate previous month metrics for comparison
+      const prevRevenue = await calculateRevenue(salesData, {
+        start: startOfPrevMonth,
+        end: endOfPrevMonth,
+      });
+      const prevExpenses = await calculateExpenses(expensesData, {
+        start: startOfPrevMonth,
+        end: endOfPrevMonth,
+      });
+      const prevProfit = calculateProfit(prevRevenue, prevExpenses);
+      const prevProfitMargin = calculateProfitMargin(prevProfit, prevRevenue);
+
+      // Get additional dashboard data
+      const [topSellingProducts, monthlyTrends] = await Promise.all([
+        getTopSellingProducts(salesData, 5),
+        getMonthlyTrends(salesData, expensesData, currentMonth.getFullYear())
+      ]);
+
+      // Update summary with calculated data
       setSummary({
         totalRevenue: monthlyRevenue,
         totalExpenses: monthlyExpenses,
         netProfit: monthlyProfit,
         profitMargin,
-        topSellingProducts: getTopSellingProducts(salesData),
-        monthlyTrends: getMonthlyTrends(salesData, expensesData),
+        topSellingProducts: Array.isArray(topSellingProducts) ? topSellingProducts : [],
+        monthlyTrends: Array.isArray(monthlyTrends) ? monthlyTrends : [],
       });
-      const { prevRevenue, prevExpenses, prevProfit, prevProfitMargin } =
-        getPrevMonthStats(salesData, expensesData);
+
+      // Calculate metric changes
       setMetricChanges({
         revenue: getChange(monthlyRevenue, prevRevenue),
         expenses: getChange(monthlyExpenses, prevExpenses),
@@ -125,10 +135,20 @@ const Dashboard: React.FC = () => {
       setError(
         err instanceof Error ? err.message : "Failed to load dashboard data"
       );
+      
+      // Set safe defaults to prevent rendering errors
+      setSummary({
+        totalRevenue: 0,
+        totalExpenses: 0,
+        netProfit: 0,
+        profitMargin: 0,
+        topSellingProducts: [],
+        monthlyTrends: [],
+      });
     } finally {
       setLoading(false);
     }
-  }, [getPrevMonthStats]);
+  }, []);
 
   const handleRefresh = useCallback(async () => {
     try {
