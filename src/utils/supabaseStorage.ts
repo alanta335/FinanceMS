@@ -15,6 +15,26 @@ import {
   transformProductToDB
 } from './supabaseTransforms';
 
+// Pagination interface
+export interface PaginationOptions {
+  page?: number;
+  pageSize?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalCount: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}
+
 // --- Main Storage Class ---
 class SupabaseStorage {
   // --- Generic error wrapper ---
@@ -27,8 +47,70 @@ class SupabaseStorage {
     }
   }
 
+  // --- Generic pagination helper ---
+  private async getPaginatedData<T>(
+    tableName: string,
+    options: PaginationOptions = {},
+    transform: (item: any) => T,
+    selectQuery = '*',
+    joinQuery?: string
+  ): Promise<PaginatedResult<T>> {
+    const {
+      page = 1,
+      pageSize = 50,
+      sortBy = 'created_at',
+      sortOrder = 'desc'
+    } = options;
+
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    // Get total count
+    const { count, error: countError } = await supabase
+      .from(tableName)
+      .select('*', { count: 'exact', head: true });
+
+    if (countError) handleSupabaseError(countError, `count ${tableName}`);
+
+    const totalCount = count || 0;
+    const totalPages = Math.ceil(totalCount / pageSize);
+
+    // Get paginated data
+    let query = supabase
+      .from(tableName)
+      .select(joinQuery || selectQuery)
+      .order(sortBy, { ascending: sortOrder === 'asc' })
+      .range(from, to);
+
+    const { data, error } = await query;
+    if (error) handleSupabaseError(error, `fetch paginated ${tableName}`);
+
+    return {
+      data: (data || []).map(transform),
+      pagination: {
+        page,
+        pageSize,
+        totalCount,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1
+      }
+    };
+  }
+
   // --- Sales ---
-  getSales = () => this.wrap('fetch sales', async () => {
+  getSales = (options?: PaginationOptions) => this.wrap('fetch sales', async () => {
+    if (options) {
+      return this.getPaginatedData(
+        'sales',
+        options,
+        transformSaleFromDB,
+        '*',
+        `*, products (id, name, category, brand, model, serial_number, imei, warranty_period)`
+      );
+    }
+
+    // Fallback for non-paginated calls (backward compatibility)
     const { data, error } = await supabase
       .from('sales')
       .select(`*, products (id, name, category, brand, model, serial_number, imei, warranty_period)`)
@@ -71,7 +153,12 @@ class SupabaseStorage {
   });
 
   // --- Expenses ---
-  getExpenses = () => this.wrap('fetch expenses', async () => {
+  getExpenses = (options?: PaginationOptions) => this.wrap('fetch expenses', async () => {
+    if (options) {
+      return this.getPaginatedData('expenses', options, transformExpenseFromDB);
+    }
+
+    // Fallback for non-paginated calls (backward compatibility)
     const { data, error } = await supabase.from('expenses').select('*').order('date', { ascending: false });
     if (error) handleSupabaseError(error, 'fetch expenses');
     return (data || []).map(transformExpenseFromDB);
@@ -108,7 +195,12 @@ class SupabaseStorage {
   });
 
   // --- Employees ---
-  getEmployees = () => this.wrap('fetch employees', async () => {
+  getEmployees = (options?: PaginationOptions) => this.wrap('fetch employees', async () => {
+    if (options) {
+      return this.getPaginatedData('employees', options, transformEmployeeFromDB);
+    }
+
+    // Fallback for non-paginated calls (backward compatibility)
     const { data, error } = await supabase.from('employees').select('*').order('name', { ascending: true });
     if (error) handleSupabaseError(error, 'fetch employees');
     return (data || []).map(transformEmployeeFromDB);
@@ -147,7 +239,12 @@ class SupabaseStorage {
   });
 
   // --- Products ---
-  getProducts = () => this.wrap('fetch products', async () => {
+  getProducts = (options?: PaginationOptions) => this.wrap('fetch products', async () => {
+    if (options) {
+      return this.getPaginatedData('products', options, transformProductFromDB);
+    }
+
+    // Fallback for non-paginated calls (backward compatibility)
     const { data, error } = await supabase.from('products').select('*').order('name', { ascending: true });
     if (error) handleSupabaseError(error, 'fetch products');
     return (data || []).map(transformProductFromDB);

@@ -6,10 +6,12 @@ import Filters from "./SalesManagement/ui/Filters";
 import SalesTable from "./SalesManagement/ui/SalesTable";
 import AddSaleModal from "./SalesManagement/ui/AddSaleModal";
 import SaleDetailsModal from "./SalesManagement/ui/SaleDetailsModal";
+import Pagination from "./common/Pagination";
 import { Sale } from "../types";
 
 const SalesManagement: React.FC = () => {
   const {
+    paginatedSales,
     filteredSales,
     searchTerm,
     setSearchTerm,
@@ -25,9 +27,16 @@ const SalesManagement: React.FC = () => {
     setFilters,
     newSale,
     setNewSale,
+    currentPage,
+    pageSize,
+    sortBy,
+    sortOrder,
     handleAddSale,
     handleDeleteSale,
     handleRefresh,
+    handlePageChange,
+    handlePageSizeChange,
+    handleSortChange,
   } = useSalesManagement();
 
   const getTotalSalesAmount = () =>
@@ -101,6 +110,15 @@ const SalesManagement: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center space-x-3">
+          <select
+            value={pageSize}
+            onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+          >
+            <option value={25}>25 per page</option>
+            <option value={50}>50 per page</option>
+            <option value={100}>100 per page</option>
+          </select>
           <button
             onClick={handleRefresh}
             disabled={refreshing}
@@ -134,6 +152,9 @@ const SalesManagement: React.FC = () => {
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         onExport={exportToCSV}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortChange={handleSortChange}
       />
 
       {/* Sales Table */}
@@ -141,7 +162,21 @@ const SalesManagement: React.FC = () => {
         sales={filteredSales}
         onView={setSelectedSale}
         onDelete={handleDeleteSale}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortChange={handleSortChange}
       />
+
+      {/* Pagination */}
+      {paginatedSales && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={paginatedSales.pagination.totalPages}
+          onPageChange={handlePageChange}
+          totalItems={paginatedSales.pagination.totalCount}
+          pageSize={pageSize}
+        />
+      )}
 
       {/* Add Sale Modal */}
       {showAddModal && (

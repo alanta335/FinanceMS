@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { storage } from '../../utils/storage';
+import { storage, PaginationOptions, PaginatedResult } from '../../utils/storage';
 import { Employee } from '../../types';
 import { generateId, initialEmployee, formatDate, formatCurrency } from './employeeUtils';
 
 export function useEmployeeManagement() {
     const [employees, setEmployees] = useState<Employee[]>([]);
+    const [paginatedEmployees, setPaginatedEmployees] = useState<PaginatedResult<Employee> | null>(null);
     const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [showAddModal, setShowAddModal] = useState(false);
@@ -13,6 +14,10 @@ export function useEmployeeManagement() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(50);
+    const [sortBy, setSortBy] = useState('name');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
     const [filters, setFilters] = useState({ position: '', status: '', department: '' });
     const [newEmployee, setNewEmployee] = useState({ ...initialEmployee });
 
@@ -28,14 +33,31 @@ export function useEmployeeManagement() {
         try {
             setLoading(true);
             setError(null);
-            const employeesData = await storage.getData<Employee>('employees');
-            setEmployees(employeesData);
+            
+            const paginationOptions: PaginationOptions = {
+                page: currentPage,
+                pageSize,
+                sortBy,
+                sortOrder
+            };
+
+            const result = await storage.getData<Employee>('employees', paginationOptions);
+            
+            if ('data' in result) {
+                // Paginated result
+                setPaginatedEmployees(result);
+                setEmployees(result.data);
+            } else {
+                // Non-paginated result (fallback)
+                setEmployees(result);
+                setPaginatedEmployees(null);
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load employees data');
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [currentPage, pageSize, sortBy, sortOrder]);
 
     const handleRefresh = useCallback(async () => {
         try {
@@ -207,8 +229,24 @@ export function useEmployeeManagement() {
     const getActiveEmployees = () => filteredEmployees.filter(emp => emp.isActive).length;
     const getTotalSalaryBudget = () => filteredEmployees.filter(emp => emp.isActive).reduce((total, emp) => total + emp.baseSalary, 0);
 
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page);
+    };
+
+    const handlePageSizeChange = (newPageSize: number) => {
+        setPageSize(newPageSize);
+        setCurrentPage(1);
+    };
+
+    const handleSortChange = (newSortBy: string, newSortOrder: 'asc' | 'desc') => {
+        setSortBy(newSortBy);
+        setSortOrder(newSortOrder);
+        setCurrentPage(1);
+    };
+
     return {
         employees,
+        paginatedEmployees,
         filteredEmployees,
         searchTerm,
         setSearchTerm,
@@ -226,6 +264,10 @@ export function useEmployeeManagement() {
         setFilters,
         newEmployee,
         setNewEmployee,
+        currentPage,
+        pageSize,
+        sortBy,
+        sortOrder,
         positions,
         departments,
         handleAddEmployee,
@@ -238,6 +280,9 @@ export function useEmployeeManagement() {
         getActiveEmployees,
         getTotalSalaryBudget,
         handleRefresh,
+        handlePageChange,
+        handlePageSizeChange,
+        handleSortChange,
         formatDate,
         formatCurrency,
         resetForm

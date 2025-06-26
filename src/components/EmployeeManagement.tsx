@@ -6,9 +6,11 @@ import SummaryCards from "./EmployeeManagement/ui/SummaryCards";
 import EmployeeFilters from "./EmployeeManagement/ui/EmployeeFilters";
 import EmployeeTable from "./EmployeeManagement/ui/EmployeeTable";
 import EmployeeModals from "./EmployeeManagement/ui/EmployeeModals";
+import Pagination from "./common/Pagination";
 
 const EmployeeManagement: React.FC = () => {
   const {
+    paginatedEmployees,
     filteredEmployees,
     searchTerm,
     setSearchTerm,
@@ -26,6 +28,10 @@ const EmployeeManagement: React.FC = () => {
     setFilters,
     newEmployee,
     setNewEmployee,
+    currentPage,
+    pageSize,
+    sortBy,
+    sortOrder,
     positions,
     departments,
     handleAddEmployee,
@@ -38,6 +44,9 @@ const EmployeeManagement: React.FC = () => {
     getActiveEmployees,
     getTotalSalaryBudget,
     handleRefresh,
+    handlePageChange,
+    handlePageSizeChange,
+    handleSortChange,
     formatDate,
     formatCurrency,
     resetForm,
@@ -61,6 +70,8 @@ const EmployeeManagement: React.FC = () => {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         onAdd={() => setShowAddModal(true)}
+        pageSize={pageSize}
+        onPageSizeChange={handlePageSizeChange}
       />
 
       {/* Error Display */}
@@ -83,6 +94,9 @@ const EmployeeManagement: React.FC = () => {
         positions={positions}
         departments={departments}
         exportToCSV={exportToCSV}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortChange={handleSortChange}
       />
 
       {/* Employees Table */}
@@ -92,7 +106,21 @@ const EmployeeManagement: React.FC = () => {
         onEdit={handleEditEmployee}
         onToggle={handleToggleStatus}
         onDelete={handleDeleteEmployee}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortChange={handleSortChange}
       />
+
+      {/* Pagination */}
+      {paginatedEmployees && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={paginatedEmployees.pagination.totalPages}
+          onPageChange={handlePageChange}
+          totalItems={paginatedEmployees.pagination.totalCount}
+          pageSize={pageSize}
+        />
+      )}
 
       {/* Modals */}
       <EmployeeModals

@@ -1,12 +1,12 @@
-// Custom hook for managing expense state and logic
 import { useState, useEffect, useCallback } from "react";
-import { storage } from "../../utils/storage";
+import { storage, PaginationOptions, PaginatedResult } from "../../utils/storage";
 import { Expense } from "../../types";
 import { NewExpense } from "./types";
 import { generateId } from "../../utils/calculations";
 
 export const useExpenseManagement = () => {
     const [expenses, setExpenses] = useState<Expense[]>([]);
+    const [paginatedExpenses, setPaginatedExpenses] = useState<PaginatedResult<Expense> | null>(null);
     const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [showAddModal, setShowAddModal] = useState(false);
@@ -14,6 +14,10 @@ export const useExpenseManagement = () => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(50);
+    const [sortBy, setSortBy] = useState('date');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [filters, setFilters] = useState({
         category: "",
         status: "",
@@ -47,14 +51,31 @@ export const useExpenseManagement = () => {
         try {
             setLoading(true);
             setError(null);
-            const expensesData = await storage.getData<Expense>("expenses");
-            setExpenses(expensesData);
+            
+            const paginationOptions: PaginationOptions = {
+                page: currentPage,
+                pageSize,
+                sortBy,
+                sortOrder
+            };
+
+            const result = await storage.getData<Expense>("expenses", paginationOptions);
+            
+            if ('data' in result) {
+                // Paginated result
+                setPaginatedExpenses(result);
+                setExpenses(result.data);
+            } else {
+                // Non-paginated result (fallback)
+                setExpenses(result);
+                setPaginatedExpenses(null);
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load expenses data");
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [currentPage, pageSize, sortBy, sortOrder]);
 
     const filterExpenses = useCallback(() => {
         let filtered = [...expenses];
@@ -167,8 +188,24 @@ export const useExpenseManagement = () => {
         await handleRefresh();
     };
 
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page);
+    };
+
+    const handlePageSizeChange = (newPageSize: number) => {
+        setPageSize(newPageSize);
+        setCurrentPage(1);
+    };
+
+    const handleSortChange = (newSortBy: string, newSortOrder: 'asc' | 'desc') => {
+        setSortBy(newSortBy);
+        setSortOrder(newSortOrder);
+        setCurrentPage(1);
+    };
+
     return {
         expenses,
+        paginatedExpenses,
         filteredExpenses,
         searchTerm,
         setSearchTerm,
@@ -184,12 +221,19 @@ export const useExpenseManagement = () => {
         setFilters,
         newExpense,
         setNewExpense,
+        currentPage,
+        pageSize,
+        sortBy,
+        sortOrder,
         expenseCategories,
         handleAddExpense,
         handleDeleteExpense,
         handleApproveExpense,
         handleRejectExpense,
         handleRefresh,
+        handlePageChange,
+        handlePageSizeChange,
+        handleSortChange,
         resetForm,
         loadExpenses,
     };

@@ -1,4 +1,4 @@
-import { supabaseStorage } from './supabaseStorage';
+import { supabaseStorage, PaginationOptions, PaginatedResult } from './supabaseStorage';
 import { Sale, Expense, Employee, Product } from '../types';
 
 interface StorageData {
@@ -9,17 +9,17 @@ interface StorageData {
 }
 
 class DataStorage {
-  async getData<T>(key: keyof StorageData): Promise<T[]> {
+  async getData<T>(key: keyof StorageData, options?: PaginationOptions): Promise<T[] | PaginatedResult<T>> {
     try {
       switch (key) {
         case 'sales':
-          return await supabaseStorage.getSales() as unknown as T[];
+          return await supabaseStorage.getSales(options) as unknown as T[] | PaginatedResult<T>;
         case 'expenses':
-          return await supabaseStorage.getExpenses() as unknown as T[];
+          return await supabaseStorage.getExpenses(options) as unknown as T[] | PaginatedResult<T>;
         case 'employees':
-          return await supabaseStorage.getEmployees() as unknown as T[];
+          return await supabaseStorage.getEmployees(options) as unknown as T[] | PaginatedResult<T>;
         case 'products':
-          return await supabaseStorage.getProducts() as unknown as T[];
+          return await supabaseStorage.getProducts(options) as unknown as T[] | PaginatedResult<T>;
         default:
           throw new Error(`Unknown data type: ${key}`);
       }
@@ -130,3 +130,4 @@ class DataStorage {
 }
 
 export const storage = new DataStorage();
+export type { PaginationOptions, PaginatedResult } from './supabaseStorage';

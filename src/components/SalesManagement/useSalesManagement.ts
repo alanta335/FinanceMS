@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { storage } from "../../utils/storage";
+import { storage, PaginationOptions, PaginatedResult } from "../../utils/storage";
 import { Sale } from "../../types";
 import { generateId } from "../../utils/calculations";
 
 export const useSalesManagement = () => {
     const [sales, setSales] = useState<Sale[]>([]);
+    const [paginatedSales, setPaginatedSales] = useState<PaginatedResult<Sale> | null>(null);
     const [filteredSales, setFilteredSales] = useState<Sale[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [showAddModal, setShowAddModal] = useState(false);
@@ -12,6 +13,10 @@ export const useSalesManagement = () => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(50);
+    const [sortBy, setSortBy] = useState('date');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [filters, setFilters] = useState({
         paymentMethod: "",
         dateRange: "",
@@ -39,7 +44,7 @@ export const useSalesManagement = () => {
 
     useEffect(() => {
         loadSales();
-    }, []);
+    }, [currentPage, pageSize, sortBy, sortOrder]);
 
     useEffect(() => {
         filterSales();
@@ -50,8 +55,25 @@ export const useSalesManagement = () => {
         try {
             setLoading(true);
             setError(null);
-            const salesData = await storage.getData<Sale>("sales");
-            setSales(salesData);
+            
+            const paginationOptions: PaginationOptions = {
+                page: currentPage,
+                pageSize,
+                sortBy,
+                sortOrder
+            };
+
+            const result = await storage.getData<Sale>("sales", paginationOptions);
+            
+            if ('data' in result) {
+                // Paginated result
+                setPaginatedSales(result);
+                setSales(result.data);
+            } else {
+                // Non-paginated result (fallback)
+                setSales(result);
+                setPaginatedSales(null);
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load sales data");
         } finally {
@@ -158,8 +180,24 @@ export const useSalesManagement = () => {
         }
     };
 
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page);
+    };
+
+    const handlePageSizeChange = (newPageSize: number) => {
+        setPageSize(newPageSize);
+        setCurrentPage(1); // Reset to first page when changing page size
+    };
+
+    const handleSortChange = (newSortBy: string, newSortOrder: 'asc' | 'desc') => {
+        setSortBy(newSortBy);
+        setSortOrder(newSortOrder);
+        setCurrentPage(1); // Reset to first page when changing sort
+    };
+
     return {
         sales,
+        paginatedSales,
         filteredSales,
         searchTerm,
         setSearchTerm,
@@ -175,9 +213,16 @@ export const useSalesManagement = () => {
         setFilters,
         newSale,
         setNewSale,
+        currentPage,
+        pageSize,
+        sortBy,
+        sortOrder,
         handleAddSale,
         handleDeleteSale,
         handleRefresh,
+        handlePageChange,
+        handlePageSizeChange,
+        handleSortChange,
         resetForm,
         loadSales,
     };

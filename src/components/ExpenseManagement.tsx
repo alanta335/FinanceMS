@@ -6,10 +6,12 @@ import Filters from "./ExpenseManagement/ui/Filters";
 import ExpensesTable from "./ExpenseManagement/ui/ExpensesTable";
 import AddExpenseModal from "./ExpenseManagement/ui/AddExpenseModal";
 import ExpenseDetailsModal from "./ExpenseManagement/ui/ExpenseDetailsModal";
+import Pagination from "./common/Pagination";
 import { Expense } from "../types";
 
 const ExpenseManagement: React.FC = () => {
   const {
+    paginatedExpenses,
     filteredExpenses,
     searchTerm,
     setSearchTerm,
@@ -25,12 +27,19 @@ const ExpenseManagement: React.FC = () => {
     setFilters,
     newExpense,
     setNewExpense,
+    currentPage,
+    pageSize,
+    sortBy,
+    sortOrder,
     expenseCategories,
     handleAddExpense,
     handleDeleteExpense,
     handleApproveExpense,
     handleRejectExpense,
     handleRefresh,
+    handlePageChange,
+    handlePageSizeChange,
+    handleSortChange,
   } = useExpenseManagement();
 
   const exportToCSV = () => {
@@ -116,6 +125,15 @@ const ExpenseManagement: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center space-x-3">
+          <select
+            value={pageSize}
+            onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+          >
+            <option value={25}>25 per page</option>
+            <option value={50}>50 per page</option>
+            <option value={100}>100 per page</option>
+          </select>
           <button
             onClick={handleRefresh}
             disabled={refreshing}
@@ -151,6 +169,9 @@ const ExpenseManagement: React.FC = () => {
         })}
         expenseCategories={expenseCategories}
         exportToCSV={exportToCSV}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortChange={handleSortChange}
       />
       <ExpensesTable
         expenses={filteredExpenses}
@@ -158,7 +179,22 @@ const ExpenseManagement: React.FC = () => {
         onApprove={handleApproveExpense}
         onReject={handleRejectExpense}
         onDelete={handleDeleteExpense}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortChange={handleSortChange}
       />
+      
+      {/* Pagination */}
+      {paginatedExpenses && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={paginatedExpenses.pagination.totalPages}
+          onPageChange={handlePageChange}
+          totalItems={paginatedExpenses.pagination.totalCount}
+          pageSize={pageSize}
+        />
+      )}
+
       <AddExpenseModal
         show={showAddModal}
         onClose={() => setShowAddModal(false)}
